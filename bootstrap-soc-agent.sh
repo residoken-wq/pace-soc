@@ -176,7 +176,7 @@ start_services() {
 }
 
 main() {
-    log ">>> SOC AGENT INSTALLER <<<"
+    log ">>> SOC AGENT INSTALLER v2.0-Fix (Check for this version) <<<"
     require_root
     detect_os
     
