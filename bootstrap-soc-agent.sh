@@ -132,7 +132,7 @@ deploy_code() {
     # If we are running FROM the repo (local dev), just copy
     if [ -f "docker-compose.yml" ]; then
         log "Local config found. Copying to $SOC_DIR..."
-        cp docker-compose.yml promtail.yml "$SOC_DIR/" || true
+        cp docker-compose.yml promtail.yml Dockerfile.wazuh "$SOC_DIR/" || true
         cp -r dashboard "$SOC_DIR/" || true
     else
         # If we are running as standalone script, Pull from Git
