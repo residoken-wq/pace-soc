@@ -6,110 +6,110 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Activity } from 'lucide-react';
 
 export default function RealTimeCharts() {
-  const [data, setData] = useState<any[]>([]);
-  const [currentMetrics, setCurrentMetrics] = useState({ cpu: 0, ram: 0 });
-  const [prevCpu, setPrevCpu] = useState<any>(null);
+    const [data, setData] = useState<any[]>([]);
+    const [currentMetrics, setCurrentMetrics] = useState({ cpu: 0, ram: 0 });
+    const [prevCpu, setPrevCpu] = useState<any>(null);
 
-  useEffect(() => {
-    const interval = setInterval(async () => {
-        try {
-            const res = await fetch('/api/metrics');
-            const metrics = await res.json();
-            
-            if (metrics.error) return;
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch('/api/metrics');
+                const metrics = await res.json();
 
-            // Calculate CPU % based on delta
-            let cpuPercent = 0;
-            if (prevCpu && metrics.cpu) {
-                const deltaTotal = metrics.cpu.total - prevCpu.total;
-                const deltaIdle = metrics.cpu.idle - prevCpu.idle;
-                // prevent divide by zero
-                if (deltaTotal > 0) {
-                     cpuPercent = ((deltaTotal - deltaIdle) / deltaTotal) * 100;
+                if (metrics.error) return;
+
+                // Calculate CPU % based on delta
+                let cpuPercent = 0;
+                if (prevCpu && metrics.cpu) {
+                    const deltaTotal = metrics.cpu.total - prevCpu.total;
+                    const deltaIdle = metrics.cpu.idle - prevCpu.idle;
+                    // prevent divide by zero
+                    if (deltaTotal > 0) {
+                        cpuPercent = ((deltaTotal - deltaIdle) / deltaTotal) * 100;
+                    }
                 }
+
+                // Update Previous
+                setPrevCpu(metrics.cpu);
+
+                // Format current time
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                const newDataPoint = {
+                    name: timeStr,
+                    cpu: Math.max(0, Math.min(100, Math.round(cpuPercent))),
+                    ram: metrics.ram.percent
+                };
+
+                // Update Current Display
+                setCurrentMetrics({
+                    cpu: newDataPoint.cpu,
+                    ram: newDataPoint.ram
+                });
+
+                // Update Chart History (Keep last 20 points)
+                setData(prevData => {
+                    const newData = [...prevData, newDataPoint];
+                    return newData.slice(-20);
+                });
+
+            } catch (e) {
+                console.error("Polling error", e);
             }
+        }, 2000);
 
-            // Update Previous
-            setPrevCpu(metrics.cpu);
+        return () => clearInterval(interval);
+    }, [prevCpu]);
 
-            // Format current time
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            const newDataPoint = {
-                name: timeStr,
-                cpu: Math.max(0, Math.min(100, Math.round(cpuPercent))),
-                ram: metrics.ram.percent
-            };
+            {/* CPU Chart */}
+            <ChartCard title="CPU Usage" value={`${currentMetrics.cpu}%`} color="emerald">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data}>
+                        <defs>
+                            <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" />
+                        <YAxis stroke="#64748b" tick={{ fontSize: 12, fill: '#64748b' }} domain={[0, 100]} />
+                        <Tooltip
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }}
+                            itemStyle={{ color: '#10b981' }}
+                        />
+                        <Area type="monotone" dataKey="cpu" stroke="#10b981" fillOpacity={1} fill="url(#colorCpu)" />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </ChartCard>
 
-            // Update Current Display
-            setCurrentMetrics({ 
-                cpu: newDataPoint.cpu,
-                ram: newDataPoint.ram 
-            });
-
-            // Update Chart History (Keep last 20 points)
-            setData(prevData => {
-                const newData = [...prevData, newDataPoint];
-                return newData.slice(-20);
-            });
-
-        } catch (e) {
-            console.error("Polling error", e);
-        }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [prevCpu]);
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* CPU Chart */}
-        <ChartCard title="CPU Usage" value={`${currentMetrics.cpu}%`} color="emerald">
-             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data}>
-                    <defs>
-                        <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                        </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="name" contentStyle={{ fontSize: 10 }} stroke="#64748b" />
-                    <YAxis stroke="#64748b" fontSize={12} domain={[0, 100]} />
-                    <Tooltip 
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }}
-                        itemStyle={{ color: '#10b981' }} 
-                    />
-                    <Area type="monotone" dataKey="cpu" stroke="#10b981" fillOpacity={1} fill="url(#colorCpu)" />
-                </AreaChart>
-             </ResponsiveContainer>
-        </ChartCard>
-
-        {/* RAM Chart */}
-        <ChartCard title="Memory Usage" value={`${currentMetrics.ram}%`} color="purple">
-             <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data}>
-                    <defs>
-                        <linearGradient id="colorRam" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                        </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
-                    <YAxis stroke="#64748b" fontSize={12} domain={[0, 100]} />
-                    <Tooltip 
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }}
-                        itemStyle={{ color: '#8b5cf6' }} 
-                    />
-                    <Area type="monotone" dataKey="ram" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorRam)" />
-                </AreaChart>
-             </ResponsiveContainer>
-        </ChartCard>
-    </div>
-  );
+            {/* RAM Chart */}
+            <ChartCard title="Memory Usage" value={`${currentMetrics.ram}%`} color="purple">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data}>
+                        <defs>
+                            <linearGradient id="colorRam" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" />
+                        <YAxis stroke="#64748b" tick={{ fontSize: 12, fill: '#64748b' }} domain={[0, 100]} />
+                        <Tooltip
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }}
+                            itemStyle={{ color: '#8b5cf6' }}
+                        />
+                        <Area type="monotone" dataKey="ram" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorRam)" />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </ChartCard>
+        </div>
+    );
 }
 
 function ChartCard({ title, value, color, children }: any) {
