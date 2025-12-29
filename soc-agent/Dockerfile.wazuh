@@ -28,5 +28,5 @@ WORKDIR /var/ossec
 # Volume for data persistence
 VOLUME ["/var/ossec/etc", "/var/ossec/logs", "/var/ossec/queue"]
 
-# Run in foreground
-CMD ["/var/ossec/bin/wazuh-agent", "-f"]
+# Run in foreground via service + tail
+CMD service wazuh-agent start && tail -f /var/ossec/logs/ossec.log
