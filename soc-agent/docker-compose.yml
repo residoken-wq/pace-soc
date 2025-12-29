@@ -55,7 +55,7 @@ services:
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
 
   wazuh-agent:
-    image: wazuh/wazuh-agent:4.7.2
+    image: wazuh/wazuh-agent:latest
     container_name: soc-wazuh-agent
     restart: unless-stopped
     environment:
