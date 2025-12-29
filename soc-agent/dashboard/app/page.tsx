@@ -1,6 +1,7 @@
 import React from 'react';
 import { Shield, Activity, Server, FileText, CheckCircle, ExternalLink, Terminal } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import RealTimeCharts from '../components/RealTimeCharts';
 
 export default function Dashboard() {
   return (
@@ -9,6 +10,9 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+        {/* Real-time Charts */}
+        <RealTimeCharts />
 
         {/* Status Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
