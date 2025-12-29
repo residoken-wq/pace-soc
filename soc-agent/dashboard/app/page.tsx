@@ -2,6 +2,7 @@ import React from 'react';
 import { Shield, Activity, Server, FileText, CheckCircle, ExternalLink, Terminal } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import RealTimeCharts from '../components/RealTimeCharts';
+import AgentsList from '../components/AgentsList';
 
 export default function Dashboard() {
   return (
@@ -41,6 +42,9 @@ export default function Dashboard() {
             link="http://localhost:9100/metrics"
           />
         </div>
+
+        {/* Managed Agents */}
+        <AgentsList />
 
         {/* Quick Actions / Info */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
