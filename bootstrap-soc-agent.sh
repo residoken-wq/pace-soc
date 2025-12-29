@@ -132,8 +132,8 @@ deploy_code() {
     # If we are running FROM the repo (local dev), just copy
     if [ -f "docker-compose.yml" ]; then
         log "Local config found. Copying to $SOC_DIR..."
-        cp docker-compose.yml promtail.yml Dockerfile.wazuh "$SOC_DIR/" || true
-        cp -r dashboard "$SOC_DIR/" || true
+        cp -v docker-compose.yml promtail.yml Dockerfile.wazuh "$SOC_DIR/"
+        cp -r dashboard "$SOC_DIR/"
     else
         # If we are running as standalone script, Pull from Git
         # Note: This requires credentials if private, or public repo
@@ -152,6 +152,13 @@ deploy_code() {
     echo "AGENT_NAME=$AGENT_NAME" >> "$SOC_DIR/.env"
     
     chmod 600 "$SOC_DIR/.env"
+    
+    # Verification of critical files
+    if [ ! -f "$SOC_DIR/Dockerfile.wazuh" ]; then
+        err "CRITICAL: Dockerfile.wazuh is missing in $SOC_DIR after copy!"
+        ls -l "$SOC_DIR"
+        exit 1
+    fi
 }
 
 start_services() {
