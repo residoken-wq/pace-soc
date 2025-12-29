@@ -1,0 +1,32 @@
+FROM ubuntu:22.04
+
+# Avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    lsb-release \
+    gnupg2 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add Wazuh repository
+RUN curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && \
+    chmod 644 /usr/share/keyrings/wazuh.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt stable main" | tee /etc/apt/sources.list.d/wazuh.list
+
+# Install Wazuh Agent
+RUN apt-get update && apt-get install -y wazuh-agent && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy entrypoint script if needed, or just configure in command
+# We use a simple entrypoint to register (if needed) and start
+WORKDIR /var/ossec
+
+# Expose ports if necessary (usually outbound)
+# Volume for data persistence
+VOLUME ["/var/ossec/etc", "/var/ossec/logs", "/var/ossec/queue"]
+
+# Run in foreground
+CMD ["/var/ossec/bin/wazuh-agent", "-f"]

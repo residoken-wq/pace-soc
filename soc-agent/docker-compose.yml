@@ -55,7 +55,9 @@ services:
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
 
   wazuh-agent:
-    image: ${WAZUH_AGENT_IMAGE:-wazuh/wazuh-agent:4.7.2-1}
+    build:
+      context: .
+      dockerfile: Dockerfile.wazuh
     container_name: soc-wazuh-agent
     restart: unless-stopped
     environment:
