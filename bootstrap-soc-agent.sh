@@ -101,6 +101,28 @@ cleanup_full() {
              docker volume rm "$vol" || true
         fi
     done
+
+    # 4. Remove Native Wazuh Agent (Host Conflict Fix)
+    # The user reported dpkg errors. We must remove the host package to use the container.
+    if [ -d "/var/ossec" ] || dpkg -l | grep -q wazuh-agent 2>/dev/null; then
+        warn "Detected native Wazuh Agent. Purging to prevent conflicts..."
+        
+        # Stop service first
+        systemctl stop wazuh-agent 2>/dev/null || true
+        
+        if [ "$OS_ID" = "ubuntu" ] || [ "$OS_ID" = "debian" ]; then
+             # Force remove config files and package
+             apt-get purge -y wazuh-agent || true
+        elif [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "rhel" ]; then
+             yum remove -y wazuh-agent || true
+        fi
+        
+        # Aggressive cleanup of the directory causing 'mv' errors
+        if [ -d "/var/ossec" ]; then
+            warn "Removing /var/ossec directory..."
+            rm -rf /var/ossec
+        fi
+    fi
 }
 
 deploy_code() {

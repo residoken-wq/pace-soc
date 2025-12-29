@@ -3,16 +3,21 @@ set -euo pipefail
 
 # --- Configuration ---
 SOC_CENTER_IP="${SOC_CENTER_IP:-192.168.1.206}"
-WAZUH_MANAGER_IP="$SOC_CENTER_IP"
+WAZUH_MANAGER_IP="${WAZUH_MANAGER_IP:-$SOC_CENTER_IP}"
 LOKI_URL="http://${SOC_CENTER_IP}:3100/loki/api/v1/push"
 SOC_DIR="/opt/soc-agent"
+REPO_URL="https://github.com/pace-soc/pace-soc.git" # Update with actual repo if public/private
+AGENT_NAME="$(hostname)-container"
 
 # --- Colors & Logging ---
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
 log() { echo -e "${GREEN}[SOC-AGENT]${NC} $*"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 err() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
 # --- Checks ---
@@ -36,118 +41,126 @@ detect_os() {
 }
 
 # --- Install Functions ---
-install_docker() {
-    if command -v docker >/dev/null 2>&1; then
-        log "Docker is already installed."
-        return
-    fi
-
-    log "Installing Docker..."
-    if [ "$OS_ID" = "ubuntu" ] || [ "$OS_ID" = "debian" ]; then
-        apt-get update -qq
-        apt-get install -y docker.io docker-compose-plugin
-        systemctl enable --now docker
-    elif [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "rhel" ]; then
-        yum install -y yum-utils
-        yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-        yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-        systemctl enable --now docker
-    else
-        err "Unsupported OS for automatic Docker installation."
-        exit 1
-    fi
-}
-
-install_wazuh_agent() {
-    if systemctl is-active --quiet wazuh-agent; then
-        log "Wazuh Agent is already running."
-        return
-    fi
-
-    log "Installing Wazuh Agent..."
-    if [ "$OS_ID" = "ubuntu" ] || [ "$OS_ID" = "debian" ]; then
-        curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | apt-key add -
-        echo "deb https://packages.wazuh.com/4.x/apt stable main" > /etc/apt/sources.list.d/wazuh.list
-        apt-get update -qq
-        apt-get install -y wazuh-agent
-    elif [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "rhel" ]; then
-        rpm --import https://packages.wazuh.com/key/GPG-KEY-WAZUH
-        cat > /etc/yum.repos.d/wazuh.repo <<EOF
-[wazuh]
-gpgcheck=1
-gpgkey=https://packages.wazuh.com/key/GPG-KEY-WAZUH
-enabled=1
-name=EL-\$releasever - Wazuh
-baseurl=https://packages.wazuh.com/4.x/yum/
-protect=1
-EOF
-        yum install -y wazuh-agent
-    fi
-
-    # Configure Wazuh
-    sed -i "s#<address>.*</address>#<address>${WAZUH_MANAGER_IP}</address>#" /var/ossec/etc/ossec.conf
+install_essential_tools() {
+    log "Checking essential tools (git, curl, docker)..."
     
-    # Enable and Restart
-    systemctl daemon-reload
-    systemctl enable wazuh-agent
-    systemctl restart wazuh-agent
-    log "Wazuh Agent installed and started."
+    local missing_tools=()
+    command -v git >/dev/null 2>&1 || missing_tools+=("git")
+    command -v curl >/dev/null 2>&1 || missing_tools+=("curl")
+    
+    if [ ${#missing_tools[@]} -eq 0 ]; then
+         log "Essential tools are present."
+    else
+         log "Installing missing tools: ${missing_tools[*]}..."
+         if [ "$OS_ID" = "ubuntu" ] || [ "$OS_ID" = "debian" ]; then
+             apt-get update -qq
+             apt-get install -y "${missing_tools[@]}"
+         elif [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "rhel" ]; then
+             yum install -y "${missing_tools[@]}"
+         fi
+    fi
+
+    # Docker separate install
+    if ! command -v docker >/dev/null 2>&1; then
+        log "Installing Docker..."
+        if [ "$OS_ID" = "ubuntu" ] || [ "$OS_ID" = "debian" ]; then
+            curl -fsSL https://get.docker.com | sh
+        elif [ "$OS_ID" = "centos" ] || [ "$OS_ID" = "rhel" ]; then
+             yum install -y yum-utils
+             yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+             yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+             systemctl enable --now docker
+        fi
+    fi
 }
 
-setup_soc_dir() {
-    log "Setting up SOC Directory at $SOC_DIR..."
+cleanup_full() {
+    log "Executing System Cleanup..."
+    
+    # 1. Stop and Remove Legacy Containers
+    local containers=("promtail-agent" "node-exporter" "wazuh-agent" "soc-promtail" "soc-node-exporter" "soc-wazuh-agent" "soc-dashboard")
+    for container in "${containers[@]}"; do
+        if docker ps -a --format '{{.Names}}' | grep -q "^${container}$"; then
+            warn "Removing container: $container"
+            docker rm -f "$container" || true
+        fi
+    done
+
+    # 2. Network Cleanup
+    if docker network ls | grep -q "soc-net"; then
+        warn "Removing network: soc-net"
+        docker network rm soc-net || true
+    fi
+
+    # 3. Volume Cleanup (Deep Clean)
+    # Only remove volumes if we want a TRULY fresh start (Lose logs/state)
+    local volumes=("soc-agent_promtail-data" "soc-agent_wazuh-logs" "wazuh-logs" "promtail-data")
+    for vol in "${volumes[@]}"; do
+        if docker volume ls -q | grep -q "^${vol}$"; then
+             warn "Removing volume: $vol"
+             docker volume rm "$vol" || true
+        fi
+    done
+}
+
+deploy_code() {
+    log "Deploying SOC Agent Code..."
     mkdir -p "$SOC_DIR"
-
-    # Copy config files if they exist in current directory (Pack Mode)
-    # Otherwise, we could generate them here as fallback (omitted for brevity, relying on pack)
-    if [ -f "docker-compose.yml" ]; then
-        cp "docker-compose.yml" "$SOC_DIR/"
-    else
-        err "docker-compose.yml not found in current directory!"
-        exit 1
-    fi
-
-    if [ -f "promtail.yml" ]; then
-        cp "promtail.yml" "$SOC_DIR/"
-    else
-        err "promtail.yml not found in current directory!"
-        exit 1
-    fi
     
-    # Set permissions (Security)
-    chmod 600 "$SOC_DIR/promtail.yml"
-    chmod 600 "$SOC_DIR/docker-compose.yml"
+    # If we are running FROM the repo (local dev), just copy
+    if [ -f "docker-compose.yml" ]; then
+        log "Local config found. Copying to $SOC_DIR..."
+        cp docker-compose.yml promtail.yml "$SOC_DIR/" || true
+        cp -r dashboard "$SOC_DIR/" || true
+    else
+        # If we are running as standalone script, Pull from Git
+        # Note: This requires credentials if private, or public repo
+        if [ ! -d "$SOC_DIR/.git" ]; then
+             log "Cloning repository..."
+             # git clone "$REPO_URL" "$SOC_DIR"
+             warn "Git clone skipped (Repo URL placeholder). Please ensure config files are present in $SOC_DIR"
+        else
+             log "Updating repository..."
+             # cd "$SOC_DIR" && git pull
+        fi
+    fi
+
+    # Generate .env
+    echo "WAZUH_MANAGER_IP=$WAZUH_MANAGER_IP" > "$SOC_DIR/.env"
+    echo "AGENT_NAME=$AGENT_NAME" >> "$SOC_DIR/.env"
+    
+    chmod 600 "$SOC_DIR/.env"
 }
 
 start_services() {
-    log "Starting Docker services..."
+    log "Starting SOC Stack..."
     cd "$SOC_DIR"
-    docker compose up -d
     
-    # Verification
+    # Ensure Docker Dashboard is built/pulled
+    docker compose up -d --build --remove-orphans
+    
     if docker compose ps | grep -q "Up"; then
-        log "Services are running."
+        log "SOC Agent Stack is RUNNING."
     else
-        err "Failed to start services. Check 'docker compose logs'."
+        err "Stack start failed."
     fi
 }
 
 main() {
-    log "Starting SOC Agent Bootstrap..."
+    log ">>> SOC AGENT INSTALLER <<<"
     require_root
     detect_os
     
-    install_docker
-    install_wazuh_agent
-    
-    setup_soc_dir
+    install_essential_tools
+    cleanup_full
+    deploy_code
     start_services
 
     log "---------------------------------------------------"
-    log "Installation Complete!"
-    log "1. Wazuh Agent: ACTIVE (Check Wazuh Dashboard to Accept)"
-    log "2. Promtail:    SENDING LOGS -> $LOKI_URL"
-    log "3. Node Exp:    EXPOSING METRICS -> :9100"
+    log "Status Checking:"
+    log "  Dashboard: http://$(hostname -I | awk '{print $1}'):8080"
+    log "  Metrics:   http://$(hostname -I | awk '{print $1}'):9100"
+    log "  Loki:      sending to $LOKI_URL"
     log "---------------------------------------------------"
 }
 
