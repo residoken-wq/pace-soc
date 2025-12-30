@@ -79,6 +79,11 @@ services:
     restart: unless-stopped
     ports:
       - "8080:3000"
+    environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - WAZUH_MANAGER_URL=https://192.168.1.206:55000
+      - WAZUH_API_USER=wazuh-wui
+      - WAZUH_API_PASSWORD=kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
