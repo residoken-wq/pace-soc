@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
-import { Save, Bell, Server, Cpu, HardDrive, Check, Loader2, Database, Mail, MessageSquare } from 'lucide-react';
+import { Save, Bell, Server, Cpu, HardDrive, Check, Loader2, Database, Mail, MessageSquare, Wifi, XCircle } from 'lucide-react';
 
 interface Settings {
     alertThresholds: {
@@ -18,6 +18,7 @@ interface Settings {
     wazuh: {
         managerUrl: string;
         apiUser: string;
+        apiPassword: string;
     };
     notifications: {
         emailEnabled: boolean;
@@ -29,7 +30,7 @@ interface Settings {
 const defaultSettings: Settings = {
     alertThresholds: { cpuWarning: 80, diskCritical: 90, memoryWarning: 85 },
     services: { wazuhAgent: true, promtail: true, nodeExporter: true },
-    wazuh: { managerUrl: 'https://192.168.1.206:55000', apiUser: 'wazuh-wui' },
+    wazuh: { managerUrl: 'https://192.168.1.206:55000', apiUser: 'wazuh-wui', apiPassword: 'wazuh-wui' },
     notifications: { emailEnabled: false, slackEnabled: false, webhookUrl: '' }
 };
 
@@ -190,16 +191,29 @@ export default function SettingsPage() {
                                 placeholder="https://192.168.1.206:55000"
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm text-slate-300 mb-2">API User</label>
-                            <input
-                                type="text"
-                                value={settings.wazuh.apiUser}
-                                onChange={(e) => updateWazuh('apiUser', e.target.value)}
-                                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
-                                placeholder="wazuh-wui"
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm text-slate-300 mb-2">API User</label>
+                                <input
+                                    type="text"
+                                    value={settings.wazuh.apiUser}
+                                    onChange={(e) => updateWazuh('apiUser', e.target.value)}
+                                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+                                    placeholder="wazuh-wui"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-slate-300 mb-2">API Password</label>
+                                <input
+                                    type="password"
+                                    value={settings.wazuh.apiPassword || ''}
+                                    onChange={(e) => updateWazuh('apiPassword', e.target.value)}
+                                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+                                    placeholder="••••••••"
+                                />
+                            </div>
                         </div>
+                        <TestConnectionButton settings={settings} />
                     </div>
                 </section>
 
@@ -362,6 +376,52 @@ function ToggleItem({ label, description, checked, onChange }: any) {
                     className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${checked ? 'left-5' : 'left-0.5'}`}
                 />
             </button>
+        </div>
+    );
+}
+
+function TestConnectionButton({ settings }: { settings: Settings }) {
+    const [testing, setTesting] = useState(false);
+    const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+    const testConnection = async () => {
+        setTesting(true);
+        setResult(null);
+        try {
+            const res = await fetch('/api/wazuh/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    managerUrl: settings.wazuh.managerUrl,
+                    apiUser: settings.wazuh.apiUser,
+                    apiPassword: settings.wazuh.apiPassword
+                })
+            });
+            const data = await res.json();
+            setResult({ success: data.success, message: data.message || data.error });
+        } catch (e: any) {
+            setResult({ success: false, message: e.message });
+        } finally {
+            setTesting(false);
+        }
+    };
+
+    return (
+        <div className="flex items-center gap-4 pt-4 border-t border-slate-700">
+            <button
+                onClick={testConnection}
+                disabled={testing}
+                className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+                {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wifi className="w-4 h-4" />}
+                Test Connection
+            </button>
+            {result && (
+                <div className={`flex items-center gap-2 text-sm ${result.success ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {result.success ? <Check className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                    {result.message}
+                </div>
+            )}
         </div>
     );
 }
