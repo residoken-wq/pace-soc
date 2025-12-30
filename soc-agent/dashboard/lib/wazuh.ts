@@ -1,9 +1,9 @@
 // Wazuh API Client with JWT Authentication
-// Default credentials: wazuh-wui / wazuh-wui
+// Credentials from /usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml
 
 const WAZUH_MANAGER_URL = process.env.WAZUH_MANAGER_URL || 'https://192.168.1.206:55000';
 const WAZUH_API_USER = process.env.WAZUH_API_USER || 'wazuh-wui';
-const WAZUH_API_PASSWORD = process.env.WAZUH_API_PASSWORD || 'wazuh-wui';
+const WAZUH_API_PASSWORD = process.env.WAZUH_API_PASSWORD || 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1';
 
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
