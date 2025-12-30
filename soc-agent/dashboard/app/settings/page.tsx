@@ -263,6 +263,38 @@ export default function SettingsPage() {
                     </div>
                 </section>
 
+                {/* Wazuh Agent Installation */}
+                <section className="space-y-4">
+                    <h3 className="text-lg font-semibold text-teal-400 flex items-center gap-2">
+                        <Server className="w-5 h-5" /> Wazuh Agent Installation
+                    </h3>
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden p-6 space-y-4">
+                        <p className="text-sm text-slate-400">
+                            Quick install command for Linux machines. Run as root on target servers:
+                        </p>
+                        <div className="bg-slate-950 border border-slate-700 rounded-lg p-4 font-mono text-sm text-emerald-400 overflow-x-auto">
+                            <code>curl -sO https://packages.wazuh.com/4.7/wazuh-install.sh && sudo WAZUH_MANAGER='{settings.wazuh.managerUrl.replace('https://', '').replace(':55000', '')}' bash wazuh-install.sh</code>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                                <h4 className="text-sm font-medium text-slate-200 mb-2">Ubuntu/Debian</h4>
+                                <code className="text-xs text-slate-400 font-mono">
+                                    apt-get install -y wazuh-agent
+                                </code>
+                            </div>
+                            <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                                <h4 className="text-sm font-medium text-slate-200 mb-2">CentOS/RHEL</h4>
+                                <code className="text-xs text-slate-400 font-mono">
+                                    yum install -y wazuh-agent
+                                </code>
+                            </div>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                            Use the <a href="/tools" className="text-teal-400 hover:underline">Network Tools</a> page for scanning hosts and generating installation scripts.
+                        </p>
+                    </div>
+                </section>
+
                 {/* Save Button */}
                 <div className="flex justify-end">
                     <button

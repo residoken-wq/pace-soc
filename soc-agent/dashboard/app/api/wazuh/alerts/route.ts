@@ -33,26 +33,12 @@ export async function GET(request: Request) {
     } catch (error: any) {
         console.error('Wazuh Alerts Error:', error);
 
-        // Return mock data for development/fallback
+        // Return empty array when Wazuh is not available
         return NextResponse.json({
             success: false,
             error: error.message,
-            alerts: [
-                {
-                    id: 'mock-1',
-                    timestamp: new Date().toISOString(),
-                    rule: { id: '5710', level: 10, description: 'SSH Authentication Failure' },
-                    agent: { id: '001', name: 'soc-agent-container', ip: '192.168.1.206' },
-                    location: '/var/log/auth.log'
-                },
-                {
-                    id: 'mock-2',
-                    timestamp: new Date(Date.now() - 300000).toISOString(),
-                    rule: { id: '550', level: 5, description: 'File modified in monitored directory' },
-                    agent: { id: '002', name: 'web-server-01', ip: '192.168.1.100' },
-                    location: '/var/ossec/logs/alerts/alerts.json'
-                }
-            ]
+            alerts: [],
+            message: 'Cannot connect to Wazuh Manager. Install agents to start receiving alerts.'
         });
     }
 }

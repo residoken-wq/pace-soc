@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Shield, Settings, Bell } from 'lucide-react';
+import { Shield, Settings, Bell, Network, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Navbar() {
@@ -22,6 +22,8 @@ export default function Navbar() {
                     <nav className="hidden md:flex items-center gap-1">
                         <NavLink href="/" label="Overview" />
                         <NavLink href="/alerts" label="Alerts" icon={<Bell className="w-4 h-4" />} />
+                        <NavLink href="/rules" label="Rules" icon={<FileText className="w-4 h-4" />} />
+                        <NavLink href="/tools" label="Tools" icon={<Network className="w-4 h-4" />} />
                         <NavLink href="/settings" label="Settings" icon={<Settings className="w-4 h-4" />} />
                     </nav>
                 </div>

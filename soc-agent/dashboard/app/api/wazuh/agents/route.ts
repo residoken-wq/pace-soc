@@ -25,15 +25,12 @@ export async function GET() {
     } catch (error: any) {
         console.error('Wazuh Agents Error:', error);
 
-        // Return mock data for development/fallback
+        // Return empty array when Wazuh is not available
         return NextResponse.json({
             success: false,
             error: error.message,
-            agents: [
-                { id: '001', name: 'soc-agent-container', ip: '192.168.1.206', status: 'active', os: 'Ubuntu 24.04', version: '4.7.2' },
-                { id: '002', name: 'web-server-01', ip: '192.168.1.100', status: 'active', os: 'CentOS 8', version: '4.7.2' },
-                { id: '003', name: 'db-server-01', ip: '192.168.1.101', status: 'disconnected', os: 'Debian 11', version: '4.7.1' }
-            ]
+            agents: [],
+            message: 'Cannot connect to Wazuh Manager. Use Network Tools to scan for hosts and install agents.'
         });
     }
 }
