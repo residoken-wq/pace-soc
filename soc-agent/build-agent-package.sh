@@ -4,7 +4,7 @@
 
 set -e
 
-WAZUH_VERSION="4.7.2"
+WAZUH_VERSION="4.14.1"
 MANAGER_IP="${WAZUH_MANAGER_IP:-192.168.1.206}"
 OUTPUT_DIR="soc-agent-deployment"
 PACKAGE_NAME="soc-agent-bundle-${WAZUH_VERSION}.tar.gz"
