@@ -154,21 +154,21 @@ export default function SettingsPage() {
                             icon={<Cpu className="w-5 h-5 text-slate-400" />}
                             label="High CPU Warning"
                             value={settings.alertThresholds.cpuWarning}
-                            onChange={(v) => updateThreshold('cpuWarning', v)}
+                            onChange={(v: number) => updateThreshold('cpuWarning', v)}
                             color="emerald"
                         />
                         <ThresholdSlider
                             icon={<HardDrive className="w-5 h-5 text-slate-400" />}
                             label="Disk Usage Critical"
                             value={settings.alertThresholds.diskCritical}
-                            onChange={(v) => updateThreshold('diskCritical', v)}
+                            onChange={(v: number) => updateThreshold('diskCritical', v)}
                             color="red"
                         />
                         <ThresholdSlider
                             icon={<Database className="w-5 h-5 text-slate-400" />}
                             label="Memory Warning"
                             value={settings.alertThresholds.memoryWarning}
-                            onChange={(v) => updateThreshold('memoryWarning', v)}
+                            onChange={(v: number) => updateThreshold('memoryWarning', v)}
                             color="yellow"
                         />
                     </div>
