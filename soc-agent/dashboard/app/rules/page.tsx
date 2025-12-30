@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
-import { Shield, Search, Filter, ToggleLeft, ToggleRight, ExternalLink, AlertTriangle, Cpu, Network, HardDrive, Server, Plus } from 'lucide-react';
+import RuleModal from '../../components/RuleModal';
+import { Shield, Search, Filter, ToggleLeft, ToggleRight, ExternalLink, AlertTriangle, Cpu, Network, HardDrive, Server, Plus, Pencil, Trash2 } from 'lucide-react';
 
 interface Rule {
     id: string;
@@ -20,6 +21,8 @@ export default function RulesPage() {
     const [rules, setRules] = useState<Rule[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState({ category: 'all', severity: 'all', search: '' });
+    const [modalOpen, setModalOpen] = useState(false);
+    const [editingRule, setEditingRule] = useState<Rule | null>(null);
 
     const fetchRules = async () => {
         setLoading(true);
@@ -42,6 +45,60 @@ export default function RulesPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'toggle', ruleId })
         });
+        fetchRules();
+    };
+
+    const handleCreateRule = () => {
+        setEditingRule(null);
+        setModalOpen(true);
+    };
+
+    const handleEditRule = (rule: Rule) => {
+        setEditingRule(rule);
+        setModalOpen(true);
+    };
+
+    const handleDeleteRule = async (ruleId: string) => {
+        if (!confirm('Are you sure you want to delete this rule?')) return;
+        await fetch('/api/rules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete', ruleId })
+        });
+        fetchRules();
+    };
+
+    const handleSaveRule = async (formData: any) => {
+        const rulePayload = {
+            name: formData.name,
+            category: formData.category,
+            severity: formData.severity,
+            description: formData.description,
+            conditions: formData.conditions,
+            action: formData.action,
+            enabled: formData.enabled,
+            mitre: formData.mitreTactic ? {
+                tactic: formData.mitreTactic,
+                technique: formData.mitreTechnique,
+                techniqueId: formData.mitreTechniqueId
+            } : undefined
+        };
+
+        if (editingRule) {
+            // Update existing rule
+            await fetch('/api/rules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'update', ruleId: editingRule.id, rule: rulePayload })
+            });
+        } else {
+            // Create new rule
+            await fetch('/api/rules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'create', rule: rulePayload })
+            });
+        }
         fetchRules();
     };
 
@@ -84,7 +141,10 @@ export default function RulesPage() {
                         <h2 className="text-2xl font-bold text-slate-100">SOC Alert Rules</h2>
                         <p className="text-slate-400">Manage detection rules with MITRE ATT&CK mapping</p>
                     </div>
-                    <button className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-lg flex items-center gap-2 transition-colors">
+                    <button
+                        onClick={handleCreateRule}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-lg flex items-center gap-2 transition-colors"
+                    >
                         <Plus className="w-4 h-4" /> Create Rule
                     </button>
                 </div>
@@ -139,6 +199,7 @@ export default function RulesPage() {
                                 <th className="px-6 py-4 font-medium">Severity</th>
                                 <th className="px-6 py-4 font-medium">MITRE ATT&CK</th>
                                 <th className="px-6 py-4 font-medium">Action</th>
+                                <th className="px-6 py-4 font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
@@ -184,11 +245,29 @@ export default function RulesPage() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded text-xs ${rule.action === 'block' ? 'bg-red-500/20 text-red-400' :
-                                                rule.action === 'alert' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                    'bg-blue-500/20 text-blue-400'
+                                            rule.action === 'alert' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                'bg-blue-500/20 text-blue-400'
                                             }`}>
                                             {rule.action.toUpperCase()}
                                         </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleEditRule(rule)}
+                                                className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-emerald-400 transition-colors"
+                                                title="Edit"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteRule(rule.id)}
+                                                className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400 transition-colors"
+                                                title="Delete"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -210,6 +289,14 @@ export default function RulesPage() {
                     <StatCard label="With MITRE" value={rules.filter(r => r.mitre).length} color="blue" />
                 </div>
             </main>
+
+            {/* Rule Modal */}
+            <RuleModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSave={handleSaveRule}
+                editRule={editingRule}
+            />
         </div>
     );
 }
@@ -228,3 +315,4 @@ function StatCard({ label, value, color = 'slate' }: any) {
         </div>
     );
 }
+

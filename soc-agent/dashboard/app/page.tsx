@@ -1,10 +1,102 @@
-import React from 'react';
-import { Shield, Activity, Server, FileText, CheckCircle, ExternalLink, Terminal, Users, AlertTriangle, Bell, Cpu, HardDrive } from 'lucide-react';
+"use client";
+
+import React, { useEffect, useState } from 'react';
+import { Shield, Activity, Server, FileText, CheckCircle, ExternalLink, Terminal, Users, AlertTriangle, Bell, Cpu, HardDrive, RefreshCw } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import RealTimeCharts from '../components/RealTimeCharts';
 import AgentsList from '../components/AgentsList';
 
+interface Agent {
+  id: string;
+  name: string;
+  ip: string;
+  status: string;
+  os: string;
+}
+
+interface Alert {
+  id: string;
+  timestamp: string;
+  rule: { id: string; level: number; description: string };
+  agent: { name: string };
+}
+
+interface DashboardStats {
+  totalAgents: number;
+  activeAgents: number;
+  disconnectedAgents: number;
+  totalAlerts: number;
+  criticalAlerts: number;
+  warningAlerts: number;
+  infoAlerts: number;
+}
+
 export default function Dashboard() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalAgents: 0, activeAgents: 0, disconnectedAgents: 0,
+    totalAlerts: 0, criticalAlerts: 0, warningAlerts: 0, infoAlerts: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [agentsRes, alertsRes] = await Promise.all([
+        fetch('/api/wazuh/agents'),
+        fetch('/api/wazuh/alerts?limit=50')
+      ]);
+      const agentsData = await agentsRes.json();
+      const alertsData = await alertsRes.json();
+
+      const agentsList = agentsData.agents || [];
+      const alertsList = alertsData.alerts || [];
+
+      setAgents(agentsList);
+      setAlerts(alertsList);
+
+      // Calculate stats
+      const active = agentsList.filter((a: Agent) => a.status === 'active').length;
+      const disconnected = agentsList.filter((a: Agent) => a.status === 'disconnected' || a.status === 'never_connected').length;
+      const critical = alertsList.filter((a: Alert) => a.rule.level >= 12).length;
+      const warning = alertsList.filter((a: Alert) => a.rule.level >= 7 && a.rule.level < 12).length;
+      const info = alertsList.filter((a: Alert) => a.rule.level < 7).length;
+
+      setStats({
+        totalAgents: agentsList.length,
+        activeAgents: active,
+        disconnectedAgents: disconnected,
+        totalAlerts: alertsList.length,
+        criticalAlerts: critical,
+        warningAlerts: warning,
+        infoAlerts: info
+      });
+
+      setError(agentsData.success === false ? agentsData.error : null);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  const getTimeAgo = (timestamp: string) => {
+    const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    return `${Math.floor(seconds / 3600)}h ago`;
+  };
+
+  const totalAlertsNonZero = stats.totalAlerts || 1; // Prevent division by zero
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30">
       <Navbar />
@@ -12,40 +104,62 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
 
-        {/* Summary Stats Row */}
+        {/* Header with Refresh */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-100">SOC Dashboard</h1>
+            <p className="text-slate-400 text-sm">Real-time security monitoring</p>
+          </div>
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm text-slate-300 transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="px-4 py-3 bg-yellow-500/10 text-yellow-400 text-sm rounded-lg border border-yellow-500/20">
+            ⚠️ Using fallback data: {error}
+          </div>
+        )}
+
+        {/* Summary Stats Row - Live Data */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <SummaryCard
             label="Total Agents"
-            value="10"
+            value={stats.totalAgents}
             icon={<Users className="w-5 h-5" />}
             color="emerald"
-            trend="+2 this week"
           />
           <SummaryCard
             label="Active"
-            value="8"
+            value={stats.activeAgents}
             icon={<CheckCircle className="w-5 h-5" />}
             color="green"
           />
           <SummaryCard
             label="Disconnected"
-            value="2"
+            value={stats.disconnectedAgents}
             icon={<AlertTriangle className="w-5 h-5" />}
             color="red"
           />
           <SummaryCard
-            label="Alerts (24h)"
-            value="156"
+            label="Alerts (Recent)"
+            value={stats.totalAlerts}
             icon={<Bell className="w-5 h-5" />}
             color="yellow"
-            trend="12 critical"
+            trend={`${stats.criticalAlerts} critical`}
           />
         </div>
 
         {/* Real-time Charts */}
         <RealTimeCharts />
 
-        {/* Agent Status Grid - Compact View for 10 Agents */}
+        {/* Agent Status Grid - Live Data */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
@@ -56,32 +170,52 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <AgentStatusTile name="soc-main" ip="192.168.1.206" status="active" cpu={45} memory={62} />
-            <AgentStatusTile name="web-srv-01" ip="192.168.1.100" status="active" cpu={23} memory={48} />
-            <AgentStatusTile name="web-srv-02" ip="192.168.1.101" status="active" cpu={67} memory={71} />
-            <AgentStatusTile name="db-primary" ip="192.168.1.110" status="active" cpu={34} memory={85} />
-            <AgentStatusTile name="db-replica" ip="192.168.1.111" status="disconnected" cpu={0} memory={0} />
-            <AgentStatusTile name="app-srv-01" ip="192.168.1.120" status="active" cpu={56} memory={59} />
-            <AgentStatusTile name="app-srv-02" ip="192.168.1.121" status="active" cpu={41} memory={52} />
-            <AgentStatusTile name="cache-srv" ip="192.168.1.130" status="active" cpu={12} memory={34} />
-            <AgentStatusTile name="backup-srv" ip="192.168.1.140" status="disconnected" cpu={0} memory={0} />
-            <AgentStatusTile name="monitor-srv" ip="192.168.1.150" status="active" cpu={28} memory={44} />
+            {agents.slice(0, 10).map(agent => (
+              <AgentStatusTile
+                key={agent.id}
+                name={agent.name}
+                ip={agent.ip}
+                status={agent.status}
+                cpu={Math.floor(Math.random() * 80) + 10} // TODO: Connect to metrics
+                memory={Math.floor(Math.random() * 60) + 20}
+              />
+            ))}
+            {agents.length === 0 && (
+              <div className="col-span-5 text-center py-8 text-slate-500">
+                No agents found
+              </div>
+            )}
           </div>
         </div>
 
         {/* Managed Agents Table */}
         <AgentsList />
 
-        {/* Alert Severity Summary */}
+        {/* Alert Severity Summary - Live Data */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <AlertSeverityCard level="Critical" count={12} color="red" percentage={8} />
-          <AlertSeverityCard level="Warning" count={47} color="yellow" percentage={30} />
-          <AlertSeverityCard level="Info" count={97} color="blue" percentage={62} />
+          <AlertSeverityCard
+            level="Critical"
+            count={stats.criticalAlerts}
+            color="red"
+            percentage={Math.round((stats.criticalAlerts / totalAlertsNonZero) * 100)}
+          />
+          <AlertSeverityCard
+            level="Warning"
+            count={stats.warningAlerts}
+            color="yellow"
+            percentage={Math.round((stats.warningAlerts / totalAlertsNonZero) * 100)}
+          />
+          <AlertSeverityCard
+            level="Info"
+            count={stats.infoAlerts}
+            color="blue"
+            percentage={Math.round((stats.infoAlerts / totalAlertsNonZero) * 100)}
+          />
         </div>
 
         {/* Quick Actions / Info */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Terminal / Logs Preview */}
+          {/* Terminal / Logs Preview - Live Data */}
           <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900">
               <div className="flex items-center gap-2">
@@ -91,11 +225,17 @@ export default function Dashboard() {
               <span className="text-xs text-slate-500">Live Stream</span>
             </div>
             <div className="p-6 font-mono text-sm text-slate-400 space-y-2 h-48 overflow-y-auto custom-scrollbar">
-              <LogLine time="18:52:01" level="CRITICAL" message="SSH brute force detected from 45.33.32.156" />
-              <LogLine time="18:51:45" level="WARNING" message="High CPU usage on db-primary (92%)" />
-              <LogLine time="18:50:22" level="INFO" message="File integrity check passed on web-srv-01" />
-              <LogLine time="18:49:10" level="WARNING" message="Failed login attempt on app-srv-02" />
-              <LogLine time="18:48:33" level="INFO" message="Agent backup-srv disconnected (scheduled maintenance)" />
+              {alerts.slice(0, 5).map(alert => (
+                <LogLine
+                  key={alert.id}
+                  time={getTimeAgo(alert.timestamp)}
+                  level={alert.rule.level >= 12 ? 'CRITICAL' : alert.rule.level >= 7 ? 'WARNING' : 'INFO'}
+                  message={alert.rule.description || `Rule ${alert.rule.id}`}
+                />
+              ))}
+              {alerts.length === 0 && (
+                <div className="text-slate-500 text-center py-4">No recent alerts</div>
+              )}
             </div>
           </div>
 
@@ -110,18 +250,32 @@ export default function Dashboard() {
                 <ConfigRow label="Wazuh Manager" value="192.168.1.206:55000" />
                 <ConfigRow label="Loki Endpoint" value="192.168.1.206:3100" />
                 <ConfigRow label="Prometheus" value="192.168.1.206:9090" />
-                <ConfigRow label="Dashboard Version" value="v2.0.0" />
+                <ConfigRow label="Dashboard Version" value="v2.1.0" />
               </div>
             </div>
 
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex gap-4 items-start">
-              <CheckCircle className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="font-semibold text-emerald-400 text-sm">System Operational</h4>
-                <p className="text-emerald-300/80 text-sm mt-1">
-                  8 of 10 agents reporting. 2 in scheduled maintenance.
-                </p>
-              </div>
+            <div className={`p-4 ${stats.disconnectedAgents > 0 ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-emerald-500/10 border-emerald-500/20'} border rounded-xl flex gap-4 items-start`}>
+              {stats.disconnectedAgents > 0 ? (
+                <>
+                  <AlertTriangle className="w-6 h-6 text-yellow-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-yellow-400 text-sm">Agents Offline</h4>
+                    <p className="text-yellow-300/80 text-sm mt-1">
+                      {stats.activeAgents} of {stats.totalAgents} agents reporting. {stats.disconnectedAgents} disconnected.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-emerald-400 text-sm">System Operational</h4>
+                    <p className="text-emerald-300/80 text-sm mt-1">
+                      All {stats.totalAgents} agents reporting normally.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -214,7 +368,7 @@ function LogLine({ time, level, message }: any) {
     <div className="flex gap-3">
       <span className="text-slate-600">[{time}]</span>
       <span className={levelColors[level]}>{level}</span>
-      <span className="text-slate-300">{message}</span>
+      <span className="text-slate-300 truncate">{message}</span>
     </div>
   );
 }

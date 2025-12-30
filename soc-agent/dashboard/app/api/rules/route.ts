@@ -42,6 +42,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true, message: `Rule ${ruleId} deleted` });
         }
 
+        if (action === 'update' && ruleId && rule) {
+            const ruleIndex = customRules.findIndex(r => r.id === ruleId);
+            if (ruleIndex !== -1) {
+                customRules[ruleIndex] = { ...customRules[ruleIndex], ...rule };
+                return NextResponse.json({ success: true, rule: customRules[ruleIndex] });
+            }
+        }
+
         return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
