@@ -178,6 +178,7 @@ export default function Dashboard() {
                 status={agent.status}
                 cpu={Math.floor(Math.random() * 80) + 10} // TODO: Connect to metrics
                 memory={Math.floor(Math.random() * 60) + 20}
+                storage={Math.floor(Math.random() * 70) + 15}
               />
             ))}
             {agents.length === 0 && (
@@ -306,7 +307,7 @@ function SummaryCard({ label, value, icon, color, trend }: any) {
 }
 
 // Agent Status Tile Component
-function AgentStatusTile({ name, ip, status, cpu, memory }: any) {
+function AgentStatusTile({ name, ip, status, cpu, memory, storage }: any) {
   const isActive = status === 'active';
 
   return (
@@ -317,12 +318,15 @@ function AgentStatusTile({ name, ip, status, cpu, memory }: any) {
       </div>
       <div className="text-sm font-medium text-slate-200 truncate mb-2">{name}</div>
       {isActive ? (
-        <div className="flex gap-2 text-xs">
-          <span className="flex items-center gap-1 text-slate-400">
+        <div className="flex gap-2 text-xs flex-wrap">
+          <span className="flex items-center gap-1 text-emerald-400" title="CPU">
             <Cpu className="w-3 h-3" /> {cpu}%
           </span>
-          <span className="flex items-center gap-1 text-slate-400">
-            <HardDrive className="w-3 h-3" /> {memory}%
+          <span className="flex items-center gap-1 text-purple-400" title="Memory (RAM)">
+            <Activity className="w-3 h-3" /> {memory}%
+          </span>
+          <span className="flex items-center gap-1 text-blue-400" title="Storage">
+            <HardDrive className="w-3 h-3" /> {storage}%
           </span>
         </div>
       ) : (
