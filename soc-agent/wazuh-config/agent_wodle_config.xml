@@ -1,0 +1,14 @@
+<!-- Wazuh Agent Wodle Configuration for Metrics Collection -->
+<!-- Add this block to /var/ossec/etc/ossec.conf on each agent, inside <ossec_config> -->
+
+<wodle name="command">
+  <disabled>no</disabled>
+  <tag>soc-metrics</tag>
+  <command>/var/ossec/wodles/metrics-collector.sh</command>
+  <interval>1m</interval>
+  <run_on_start>yes</run_on_start>
+  <timeout>30</timeout>
+  <verify_md5>no</verify_md5>
+  <verify_sha1>no</verify_sha1>
+  <verify_sha256>no</verify_sha256>
+</wodle>

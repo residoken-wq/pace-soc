@@ -1,0 +1,61 @@
+<!-- SOC Metrics Rules -->
+<!-- Place this file in /var/ossec/etc/rules/ on Wazuh Manager -->
+
+<group name="soc,metrics,">
+  
+  <!-- Base rule for SOC metrics collection -->
+  <rule id="100010" level="3">
+    <decoded_as>soc-metrics-json</decoded_as>
+    <description>SOC Agent Metrics: CPU $(cpu)%, Memory $(memory)%, Storage $(storage)%</description>
+    <group>metrics,health,</group>
+  </rule>
+
+  <!-- High CPU Alert -->
+  <rule id="100011" level="10">
+    <if_sid>100010</if_sid>
+    <field name="cpu">^[89]</field>
+    <description>HIGH CPU USAGE: $(cpu)% on $(hostname)</description>
+    <group>metrics,high_cpu,</group>
+  </rule>
+
+  <!-- Critical CPU Alert -->
+  <rule id="100012" level="14">
+    <if_sid>100010</if_sid>
+    <field name="cpu">^9[5-9]|^100</field>
+    <description>CRITICAL CPU USAGE: $(cpu)% on $(hostname)</description>
+    <group>metrics,critical_cpu,</group>
+  </rule>
+
+  <!-- High Memory Alert -->
+  <rule id="100013" level="10">
+    <if_sid>100010</if_sid>
+    <field name="memory">^[89]</field>
+    <description>HIGH MEMORY USAGE: $(memory)% on $(hostname)</description>
+    <group>metrics,high_memory,</group>
+  </rule>
+
+  <!-- Critical Memory Alert -->
+  <rule id="100014" level="14">
+    <if_sid>100010</if_sid>
+    <field name="memory">^9[5-9]|^100</field>
+    <description>CRITICAL MEMORY USAGE: $(memory)% on $(hostname)</description>
+    <group>metrics,critical_memory,</group>
+  </rule>
+
+  <!-- High Disk Usage Alert -->
+  <rule id="100015" level="10">
+    <if_sid>100010</if_sid>
+    <field name="storage">^[89]</field>
+    <description>HIGH DISK USAGE: $(storage)% on $(hostname)</description>
+    <group>metrics,high_disk,</group>
+  </rule>
+
+  <!-- Critical Disk Usage Alert -->
+  <rule id="100016" level="14">
+    <if_sid>100010</if_sid>
+    <field name="storage">^9[5-9]|^100</field>
+    <description>CRITICAL DISK USAGE: $(storage)% on $(hostname)</description>
+    <group>metrics,critical_disk,</group>
+  </rule>
+
+</group>

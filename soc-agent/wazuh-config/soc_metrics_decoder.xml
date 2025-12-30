@@ -1,0 +1,12 @@
+<!-- SOC Metrics Decoder -->
+<!-- Place this file in /var/ossec/etc/decoders/ on Wazuh Manager -->
+
+<decoder name="soc-metrics-json">
+  <prematch>{"soc_metrics":</prematch>
+</decoder>
+
+<decoder name="soc-metrics-values">
+  <parent>soc-metrics-json</parent>
+  <regex offset="after_parent">"hostname":"(\S+)","cpu":(\d+\.?\d*),"memory":(\d+\.?\d*),"storage":(\d+\.?\d*)</regex>
+  <order>hostname,cpu,memory,storage</order>
+</decoder>
