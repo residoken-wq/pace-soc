@@ -34,6 +34,7 @@ interface DashboardStats {
 export default function Dashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [metrics, setMetrics] = useState<Record<string, { cpu: number; memory: number; storage: number }>>({});
   const [stats, setStats] = useState<DashboardStats>({
     totalAgents: 0, activeAgents: 0, disconnectedAgents: 0,
     totalAlerts: 0, criticalAlerts: 0, warningAlerts: 0, infoAlerts: 0
@@ -44,18 +45,29 @@ export default function Dashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [agentsRes, alertsRes] = await Promise.all([
+      const [agentsRes, alertsRes, metricsRes] = await Promise.all([
         fetch('/api/wazuh/agents'),
-        fetch('/api/wazuh/alerts?limit=50')
+        fetch('/api/wazuh/alerts?limit=50'),
+        fetch('/api/wazuh/syscollector')
       ]);
       const agentsData = await agentsRes.json();
       const alertsData = await alertsRes.json();
+      const metricsData = await metricsRes.json();
 
       const agentsList = agentsData.agents || [];
       const alertsList = alertsData.alerts || [];
 
       setAgents(agentsList);
       setAlerts(alertsList);
+
+      // Store metrics by agent ID
+      const metricsMap: Record<string, { cpu: number; memory: number; storage: number }> = {};
+      if (metricsData.metrics) {
+        metricsData.metrics.forEach((m: any) => {
+          metricsMap[m.agentId] = { cpu: m.cpu || 0, memory: m.memory || 0, storage: m.storage || 0 };
+        });
+      }
+      setMetrics(metricsMap);
 
       // Calculate stats
       const active = agentsList.filter((a: Agent) => a.status === 'active').length;
@@ -170,17 +182,20 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {agents.slice(0, 10).map(agent => (
-              <AgentStatusTile
-                key={agent.id}
-                name={agent.name}
-                ip={agent.ip}
-                status={agent.status}
-                cpu={Math.floor(Math.random() * 80) + 10} // TODO: Connect to metrics
-                memory={Math.floor(Math.random() * 60) + 20}
-                storage={Math.floor(Math.random() * 70) + 15}
-              />
-            ))}
+            {agents.slice(0, 10).map(agent => {
+              const agentMetrics = metrics[agent.id] || { cpu: 0, memory: 0, storage: 0 };
+              return (
+                <AgentStatusTile
+                  key={agent.id}
+                  name={agent.name}
+                  ip={agent.ip}
+                  status={agent.status}
+                  cpu={agentMetrics.cpu}
+                  memory={agentMetrics.memory}
+                  storage={agentMetrics.storage}
+                />
+              );
+            })}
             {agents.length === 0 && (
               <div className="col-span-5 text-center py-8 text-slate-500">
                 No agents found
