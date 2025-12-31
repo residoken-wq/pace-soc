@@ -4,7 +4,14 @@ import { NextResponse } from 'next/server';
 const generateMockLogs = () => {
     const sources = ['wazuh-agent', 'promtail', 'node-exporter', 'sshd', 'nginx', 'docker'];
     const levels: ('error' | 'warn' | 'info' | 'debug')[] = ['error', 'warn', 'info', 'debug'];
-    const agents = ['soc-main', 'web-srv-01', 'db-primary', null];
+
+    // Agent definition with IPs
+    const agents = [
+        { name: 'soc-main', ip: '127.0.0.1' },
+        { name: 'web-srv-01', ip: '192.168.0.195' },
+        { name: 'db-primary', ip: '10.0.0.5' },
+        { name: 'atm-01', ip: '125.212.254.176' }
+    ];
 
     const messages: Record<string, string[]> = {
         error: [
@@ -52,7 +59,8 @@ const generateMockLogs = () => {
             timestamp: new Date(now - i * 60000 * Math.random() * 10).toISOString(),
             level,
             source,
-            agent,
+            agent: agent.name,
+            ip: agent.ip,
             message: `[${source}] ${message}`
         });
     }

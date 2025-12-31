@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
-import { FileText, Search, Filter, Download, RefreshCw, Clock, AlertTriangle, Info, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, Search, Filter, Download, RefreshCw, Clock, AlertTriangle, Info, CheckCircle, XCircle, Sparkles, X, Brain } from 'lucide-react';
 
 interface LogEntry {
     id: string;
@@ -11,6 +11,7 @@ interface LogEntry {
     source: string;
     message: string;
     agent?: string;
+    ip?: string;
 }
 
 export default function LogsPage() {
@@ -18,6 +19,11 @@ export default function LogsPage() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState({ level: 'all', source: 'all', search: '' });
     const [autoRefresh, setAutoRefresh] = useState(false);
+
+    // AI Analysis State
+    const [analyzing, setAnalyzing] = useState(false);
+    const [analysisResult, setAnalysisResult] = useState<any>(null);
+    const [showAnalysisModal, setShowAnalysisModal] = useState(false);
 
     const fetchLogs = async () => {
         setLoading(true);
@@ -52,8 +58,8 @@ export default function LogsPage() {
 
     const exportLogs = () => {
         const csv = [
-            'Timestamp,Level,Source,Agent,Message',
-            ...filteredLogs.map(l => `"${l.timestamp}","${l.level}","${l.source}","${l.agent || ''}","${l.message.replace(/"/g, '""')}"`)
+            'Timestamp,Level,Source,Agent,IP,Message',
+            ...filteredLogs.map(l => `"${l.timestamp}","${l.level}","${l.source}","${l.agent || ''}","${l.ip || ''}","${l.message.replace(/"/g, '""')}"`)
         ].join('\n');
 
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -63,6 +69,33 @@ export default function LogsPage() {
         a.download = `soc-logs-${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
         URL.revokeObjectURL(url);
+    };
+
+    const handleAnalyzeAI = () => {
+        setAnalyzing(true);
+        setShowAnalysisModal(true);
+
+        // Simulate AI Analysis
+        setTimeout(() => {
+            const errorCount = filteredLogs.filter(l => l.level === 'error').length;
+            const warnCount = filteredLogs.filter(l => l.level === 'warn').length;
+            const topSource = sources[0]; // Simplified
+
+            setAnalysisResult({
+                summary: `Analyzed ${filteredLogs.length} logs. Found ${errorCount} errors and ${warnCount} warnings.`,
+                insights: [
+                    "High frequency of 'Connection refused' errors suggests a potential network misconfiguration or firewall issue.",
+                    "Multiple 'Failed login attempt' warnings detected from external IPs, recommending immediate review of access logs and potential IP blocking.",
+                    `Source '${topSource}' is generating the most logs, consider tuning logging verbosity if this is unexpected.`
+                ],
+                recommendations: [
+                    "Check firewall rules for port 22 (SSH) and 80/443 (Web).",
+                    "Implement fail2ban or similar intrusion prevention for repeated login failures.",
+                    "Review 'node-exporter' configuration as it's reporting high memory usage frequently."
+                ]
+            });
+            setAnalyzing(false);
+        }, 2000);
     };
 
     const getLevelIcon = (level: string) => {
@@ -98,6 +131,12 @@ export default function LogsPage() {
                     </div>
                     <div className="flex items-center gap-3">
                         <button
+                            onClick={handleAnalyzeAI}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm flex items-center gap-2 transition-colors shadow-lg shadow-purple-900/20"
+                        >
+                            <Sparkles className="w-4 h-4" /> Analyze with AI
+                        </button>
+                        <button
                             onClick={exportLogs}
                             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm flex items-center gap-2"
                         >
@@ -131,7 +170,7 @@ export default function LogsPage() {
                     <select
                         value={filter.level}
                         onChange={e => setFilter({ ...filter, level: e.target.value })}
-                        className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm"
+                        className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                     >
                         <option value="all">All Levels</option>
                         <option value="error">Error</option>
@@ -142,7 +181,7 @@ export default function LogsPage() {
                     <select
                         value={filter.source}
                         onChange={e => setFilter({ ...filter, source: e.target.value })}
-                        className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm"
+                        className="px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                     >
                         <option value="all">All Sources</option>
                         {sources.map(s => <option key={s} value={s}>{s}</option>)}
@@ -154,50 +193,53 @@ export default function LogsPage() {
                             value={filter.search}
                             onChange={e => setFilter({ ...filter, search: e.target.value })}
                             placeholder="Search logs..."
-                            className="w-full pl-10 pr-4 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm"
+                            className="w-full pl-10 pr-4 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                         />
                     </div>
-                    <div className="text-sm text-slate-500">
-                        {filteredLogs.length} of {logs.length} entries
+                    <div className="text-sm text-slate-500 flex items-center">
+                        {filteredLogs.length} entries
                     </div>
                 </div>
 
                 {/* Logs Table */}
-                <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
+                <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                            <thead className="bg-slate-800/50 text-slate-400 text-left">
+                            <thead className="bg-slate-900 text-slate-400 text-left border-b border-slate-800">
                                 <tr>
-                                    <th className="px-4 py-3 w-44">Timestamp</th>
-                                    <th className="px-4 py-3 w-24">Level</th>
-                                    <th className="px-4 py-3 w-32">Source</th>
-                                    <th className="px-4 py-3 w-32">Agent</th>
-                                    <th className="px-4 py-3">Message</th>
+                                    <th className="px-4 py-3 w-40 font-medium">Timestamp</th>
+                                    <th className="px-4 py-3 w-24 font-medium">Level</th>
+                                    <th className="px-4 py-3 w-32 font-medium">Source</th>
+                                    <th className="px-4 py-3 w-32 font-medium">Agent</th>
+                                    <th className="px-4 py-3 w-32 font-medium">IP Address</th>
+                                    <th className="px-4 py-3 font-medium">Message</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-800">
+                            <tbody className="divide-y divide-slate-800/50">
                                 {filteredLogs.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-12 text-center text-slate-500">
+                                        <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
                                             {loading ? 'Loading logs...' : 'No logs found matching your criteria'}
                                         </td>
                                     </tr>
                                 ) : (
                                     filteredLogs.slice(0, 100).map(log => (
-                                        <tr key={log.id} className="hover:bg-slate-800/30">
-                                            <td className="px-4 py-3 font-mono text-xs text-slate-400">
-                                                <Clock className="inline w-3 h-3 mr-1" />
+                                        <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
+                                            <td className="px-4 py-3 font-mono text-xs text-slate-500 whitespace-nowrap">
                                                 {new Date(log.timestamp).toLocaleString()}
                                             </td>
                                             <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${getLevelStyle(log.level)}`}>
+                                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${getLevelStyle(log.level)}`}>
                                                     {getLevelIcon(log.level)}
                                                     {log.level.toUpperCase()}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3 text-slate-300">{log.source}</td>
+                                            <td className="px-4 py-3 text-slate-300 font-medium">{log.source}</td>
                                             <td className="px-4 py-3 text-slate-400 font-mono text-xs">{log.agent || '-'}</td>
-                                            <td className="px-4 py-3 text-slate-300 font-mono text-xs truncate max-w-lg">{log.message}</td>
+                                            <td className="px-4 py-3 text-slate-400 font-mono text-xs">{log.ip || '-'}</td>
+                                            <td className="px-4 py-3 text-slate-300 font-mono text-xs truncate max-w-xl" title={log.message}>
+                                                {log.message}
+                                            </td>
                                         </tr>
                                     ))
                                 )}
@@ -205,8 +247,82 @@ export default function LogsPage() {
                         </table>
                     </div>
                 </div>
-
             </main>
+
+            {/* AI Analysis Modal */}
+            {showAnalysisModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+                        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+                            <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-purple-400" />
+                                AI Log Analysis
+                            </h3>
+                            <button onClick={() => setShowAnalysisModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto custom-scrollbar">
+                            {analyzing ? (
+                                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                                    <div className="relative">
+                                        <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin"></div>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <Brain className="w-8 h-8 text-purple-400 animate-pulse" />
+                                        </div>
+                                    </div>
+                                    <p className="text-slate-400 animate-pulse">Analyzing log patterns and anomalies...</p>
+                                </div>
+                            ) : analysisResult ? (
+                                <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+                                    <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                                        <h4 className="font-semibold text-purple-300 mb-2">Summary</h4>
+                                        <p className="text-slate-300 text-sm leading-relaxed">{analysisResult.summary}</p>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
+                                            <Info className="w-4 h-4 text-blue-400" /> Key Insights
+                                        </h4>
+                                        <ul className="space-y-2">
+                                            {analysisResult.insights.map((insight: string, idx: number) => (
+                                                <li key={idx} className="flex gap-3 text-sm text-slate-300 bg-slate-800/30 p-3 rounded-lg border border-slate-800">
+                                                    <span className="text-blue-400 font-bold">•</span>
+                                                    {insight}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
+                                            <CheckCircle className="w-4 h-4 text-emerald-400" /> Recommendations
+                                        </h4>
+                                        <ul className="space-y-2">
+                                            {analysisResult.recommendations.map((rec: string, idx: number) => (
+                                                <li key={idx} className="flex gap-3 text-sm text-slate-300 bg-slate-800/30 p-3 rounded-lg border border-slate-800">
+                                                    <span className="text-emerald-400 font-bold">→</span>
+                                                    {rec}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-slate-800 bg-slate-800/30 flex justify-end">
+                            <button
+                                onClick={() => setShowAnalysisModal(false)}
+                                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
