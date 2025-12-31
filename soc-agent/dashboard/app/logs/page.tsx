@@ -297,16 +297,27 @@ export default function LogsPage() {
 
                                     <div>
                                         <h4 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
-                                            <CheckCircle className="w-4 h-4 text-emerald-400" /> Recommendations
+                                            <CheckCircle className="w-4 h-4 text-emerald-400" /> Actionable Recommendations
                                         </h4>
-                                        <ul className="space-y-2">
-                                            {analysisResult.recommendations.map((rec: string, idx: number) => (
-                                                <li key={idx} className="flex gap-3 text-sm text-slate-300 bg-slate-800/30 p-3 rounded-lg border border-slate-800">
-                                                    <span className="text-emerald-400 font-bold">→</span>
-                                                    {rec}
-                                                </li>
+                                        <div className="space-y-4">
+                                            {analysisResult.recommendations.map((rec: any, idx: number) => (
+                                                <div key={idx} className="bg-slate-800/30 p-4 rounded-lg border border-slate-800">
+                                                    <h5 className="text-emerald-300 font-medium mb-2 flex items-center gap-2">
+                                                        <span className="bg-emerald-500/10 p-1 rounded text-xs">{idx + 1}</span>
+                                                        {rec.title}
+                                                    </h5>
+                                                    <div className="space-y-1.5 pl-2">
+                                                        {rec.steps?.map((step: string, sIdx: number) => (
+                                                            <div key={sIdx} className="text-sm text-slate-300 font-mono bg-slate-900/50 p-1.5 rounded border border-slate-800/50">
+                                                                $ {step}
+                                                            </div>
+                                                        )) || (
+                                                                <div className="text-sm text-slate-300">{rec.toString()}</div>
+                                                            )}
+                                                    </div>
+                                                </div>
                                             ))}
-                                        </ul>
+                                        </div>
                                     </div>
                                 </div>
                             ) : null}
