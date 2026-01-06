@@ -109,7 +109,6 @@ echo "Wazuh agent installed. Check status: systemctl status wazuh-agent"`;
                 </div>
 
                 {/* System Diagnostics */}
-                {/* @ts-ignore */}
                 <SystemDiagnostics />
 
                 {/* Ping Tool */}
