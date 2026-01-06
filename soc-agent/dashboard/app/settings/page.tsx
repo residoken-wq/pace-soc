@@ -1,4 +1,5 @@
 "use client";
+// Settings Page - SOC Dashboard v1.1 - TypeScript strict mode fix
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
