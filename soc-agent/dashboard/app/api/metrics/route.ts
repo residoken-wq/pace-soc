@@ -2,28 +2,28 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  try {
-    // Connect to Node Exporter via host gateway
-    const response = await fetch('http://host.docker.internal:9100/metrics', {
-        next: { revalidate: 5 } // Cache for 5s
-    });
+    try {
+        // Connect to Node Exporter via host gateway
+        const response = await fetch('http://host.docker.internal:9100/metrics', {
+            next: { revalidate: 5 } // Cache for 5s
+        });
 
-    if (!response.ok) {
-        return NextResponse.json({ error: 'Failed to fetch metrics' }, { status: 502 });
+        if (!response.ok) {
+            return NextResponse.json({ error: 'Failed to fetch metrics' }, { status: 502 });
+        }
+
+        const text = await response.text();
+        const metrics = parsePrometheusMetrics(text);
+
+        return NextResponse.json(metrics);
+    } catch (error) {
+        console.error("Metrics Fetch Error:", error);
+        // Fallback for dev/local testing where host.docker.internal might fail or NE is missing
+        return NextResponse.json(
+            { cpu: 0, ram: 0, disk: 0, error: 'Connection refused' },
+            { status: 200 } // Return 200 with 0s to prevent UI crash, but indicate error
+        );
     }
-
-    const text = await response.text();
-    const metrics = parsePrometheusMetrics(text);
-    
-    return NextResponse.json(metrics);
-  } catch (error) {
-    console.error("Metrics Fetch Error:", error);
-    // Fallback for dev/local testing where host.docker.internal might fail or NE is missing
-    return NextResponse.json(
-        { cpu: 0, ram: 0, disk: 0, error: 'Connection refused' }, 
-        { status: 200 } // Return 200 with 0s to prevent UI crash, but indicate error
-    );
-  }
 }
 
 function parsePrometheusMetrics(text: string) {
@@ -42,7 +42,7 @@ function parsePrometheusMetrics(text: string) {
 
     lines.forEach(line => {
         if (line.startsWith('#')) return;
-        
+
         // CPU (Aggregate if multiple cores, simplifying here for total)
         // node_cpu_seconds_total{cpu="0",mode="idle"} 1234.56
         if (line.startsWith('node_cpu_seconds_total')) {
@@ -68,10 +68,39 @@ function parsePrometheusMetrics(text: string) {
     // Actually, getting Instant % from Node Exporter requires rate() query which PromQL does. 
     // Without Prometheus, we have to diff ourselves.
     // Simplified approach: Return counters.
-    
+
     // Memory is easier (gauges)
     const memUsed = memTotal - memFree - memBuffers - memCached;
     const ramPercent = memTotal > 0 ? (memUsed / memTotal) * 100 : 0;
+
+    // Disk (Root /)
+    let diskTotal = 0;
+    let diskFree = 0;
+
+    // Network (Total Bytes)
+    let netRx = 0;
+    let netTx = 0;
+
+    lines.forEach(line => {
+        if (line.startsWith('#')) return;
+
+        // Disk (look for root mountpoint)
+        // node_filesystem_size_bytes{device="/dev/sda1",fstype="ext4",mountpoint="/"}
+        if (line.includes('mountpoint="/"') || line.includes('mountpoint="/etc/hosts"')) { // Docker often mounts /etc/hosts, use root generally
+            if (line.startsWith('node_filesystem_size_bytes')) diskTotal = Math.max(diskTotal, getVal(line));
+            if (line.startsWith('node_filesystem_avail_bytes')) diskFree = Math.max(diskFree, getVal(line));
+        }
+
+        // Network (Sum of all non-lo interfaces)
+        // node_network_receive_bytes_total{device="eth0"}
+        if (!line.includes('device="lo"')) {
+            if (line.startsWith('node_network_receive_bytes_total')) netRx += getVal(line);
+            if (line.startsWith('node_network_transmit_bytes_total')) netTx += getVal(line);
+        }
+    });
+
+    const diskUsed = diskTotal - diskFree;
+    const diskPercent = diskTotal > 0 ? (diskUsed / diskTotal) * 100 : 0;
 
     return {
         cpu: {
@@ -84,6 +113,16 @@ function parsePrometheusMetrics(text: string) {
             total: memTotal,
             used: memUsed,
             percent: Math.round(ramPercent * 10) / 10
+        },
+        disk: {
+            total: diskTotal,
+            used: diskUsed,
+            percent: Math.round(diskPercent * 10) / 10
+        },
+        network: {
+            rx: netRx,
+            tx: netTx,
+            total: netRx + netTx
         }
     };
 }

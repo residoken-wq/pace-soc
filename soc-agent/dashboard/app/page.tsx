@@ -331,7 +331,7 @@ function AgentStatusTile({ name, ip, status, cpu, memory, storage }: any) {
         <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-red-400'} animate-pulse`}></span>
         <span className="text-xs text-slate-500 font-mono">{ip}</span>
       </div>
-      <div className="text-sm font-medium text-slate-200 truncate mb-2">{name}</div>
+      <div className="text-sm font-medium text-slate-200 break-words mb-2">{name}</div>
       {isActive ? (
         <div className="flex gap-2 text-xs flex-wrap">
           <span className="flex items-center gap-1 text-emerald-400" title="CPU">
