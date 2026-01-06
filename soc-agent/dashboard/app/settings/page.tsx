@@ -187,7 +187,7 @@ export default function SettingsPage() {
                             <input
                                 type="text"
                                 value={settings.wazuh.managerUrl}
-                                onChange={(e) => updateWazuh('managerUrl', e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateWazuh('managerUrl', e.target.value)}
                                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
                                 placeholder="https://192.168.1.206:55000"
                             />
@@ -198,7 +198,7 @@ export default function SettingsPage() {
                                 <input
                                     type="text"
                                     value={settings.wazuh.apiUser}
-                                    onChange={(e) => updateWazuh('apiUser', e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateWazuh('apiUser', e.target.value)}
                                     className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
                                     placeholder="wazuh-wui"
                                 />
@@ -208,7 +208,7 @@ export default function SettingsPage() {
                                 <input
                                     type="password"
                                     value={settings.wazuh.apiPassword || ''}
-                                    onChange={(e) => updateWazuh('apiPassword', e.target.value)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateWazuh('apiPassword', e.target.value)}
                                     className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
                                     placeholder="••••••••"
                                 />
@@ -270,13 +270,14 @@ export default function SettingsPage() {
                             <input
                                 type="text"
                                 value={settings.notifications.webhookUrl}
-                                onChange={(e) => updateNotifications('webhookUrl', e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateNotifications('webhookUrl', e.target.value)}
                                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-orange-500"
                                 placeholder="https://hooks.slack.com/..."
                             />
                         </div>
                     </div>
                 </section>
+
 
                 {/* Wazuh Agent Installation */}
                 <section className="space-y-4">
@@ -349,7 +350,7 @@ function ThresholdSlider({ icon, label, value, onChange, color }: any) {
                     min="0"
                     max="100"
                     value={value}
-                    onChange={(e) => onChange(parseInt(e.target.value))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(parseInt(e.target.value))}
                     className={`w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer ${colorClasses[color]}`}
                 />
                 <div className="flex justify-between text-xs text-slate-500 mt-1">
