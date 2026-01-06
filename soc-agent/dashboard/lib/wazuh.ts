@@ -1,17 +1,13 @@
 // Wazuh API Client with JWT Authentication
-// Credentials from /usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml
-// Handles self-signed SSL certificates
+// Handles self-signed SSL certificates for Next.js 14+
 
-import https from 'https';
+// CRITICAL: Disable SSL verification globally for this process
+// Must be set before any fetch calls
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const WAZUH_MANAGER_URL = process.env.WAZUH_MANAGER_URL || 'https://192.168.1.206:55000';
 const WAZUH_API_USER = process.env.WAZUH_API_USER || 'wazuh-wui';
 const WAZUH_API_PASSWORD = process.env.WAZUH_API_PASSWORD || 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1';
-
-// Create HTTPS agent that ignores self-signed certificates
-const httpsAgent = new https.Agent({
-    rejectUnauthorized: false
-});
 
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
@@ -25,16 +21,20 @@ export async function getWazuhToken(): Promise<string> {
     try {
         const credentials = Buffer.from(`${WAZUH_API_USER}:${WAZUH_API_PASSWORD}`).toString('base64');
 
-        // Use node-fetch with agent for SSL bypass
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
         const response = await fetch(`${WAZUH_MANAGER_URL}/security/user/authenticate`, {
             method: 'POST',
             headers: {
                 'Authorization': `Basic ${credentials}`,
                 'Content-Type': 'application/json'
             },
-            // @ts-ignore - Node.js specific option for SSL
-            agent: httpsAgent
+            signal: controller.signal,
+            cache: 'no-store'
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             throw new Error(`Auth failed: ${response.status}`);
@@ -55,6 +55,9 @@ export async function getWazuhToken(): Promise<string> {
 export async function wazuhFetch(endpoint: string, options: RequestInit = {}): Promise<any> {
     const token = await getWazuhToken();
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const response = await fetch(`${WAZUH_MANAGER_URL}${endpoint}`, {
         ...options,
         headers: {
@@ -62,9 +65,11 @@ export async function wazuhFetch(endpoint: string, options: RequestInit = {}): P
             'Content-Type': 'application/json',
             ...options.headers
         },
-        // @ts-ignore - Node.js specific option for SSL
-        agent: httpsAgent
+        signal: controller.signal,
+        cache: 'no-store'
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
         throw new Error(`Wazuh API Error: ${response.status}`);
@@ -74,3 +79,4 @@ export async function wazuhFetch(endpoint: string, options: RequestInit = {}): P
 }
 
 export { WAZUH_MANAGER_URL };
+
