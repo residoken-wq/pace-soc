@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Users, RefreshCw, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Users, RefreshCw, CheckCircle, XCircle, AlertCircle, Loader2, Eye } from 'lucide-react';
+import AgentDetailModal from './AgentDetailModal';
 
 interface Agent {
     id: string;
@@ -17,6 +18,7 @@ export default function AgentsList() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [restartingId, setRestartingId] = useState<string | null>(null);
+    const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
     const fetchAgents = async () => {
         setLoading(true);
@@ -116,7 +118,13 @@ export default function AgentsList() {
                                 <td className="px-6 py-4">{getStatusBadge(agent.status)}</td>
                                 <td className="px-6 py-4 text-slate-400">{agent.os}</td>
                                 <td className="px-6 py-4 text-slate-500">{agent.version}</td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4 flex gap-2">
+                                    <button
+                                        onClick={() => setSelectedAgent(agent)}
+                                        className="px-3 py-1 text-xs font-medium rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 flex items-center gap-1"
+                                    >
+                                        <Eye className="w-3 h-3" /> View
+                                    </button>
                                     <button
                                         onClick={() => restartAgent(agent.id)}
                                         disabled={restartingId === agent.id || agent.status === 'disconnected'}
@@ -134,6 +142,15 @@ export default function AgentsList() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Agent Detail Modal */}
+            {selectedAgent && (
+                <AgentDetailModal
+                    agentId={selectedAgent.id}
+                    agentName={selectedAgent.name}
+                    onClose={() => setSelectedAgent(null)}
+                />
+            )}
         </div>
     );
 }
