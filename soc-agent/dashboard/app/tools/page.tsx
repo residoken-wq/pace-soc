@@ -107,6 +107,10 @@ echo "Wazuh agent installed. Check status: systemctl status wazuh-agent"`;
                     <p className="text-slate-400">Scan network and install Wazuh agents on discovered hosts</p>
                 </div>
 
+                {/* System Diagnostics */}
+                {/* @ts-ignore */}
+                <SystemDiagnostics />
+
                 {/* Ping Tool */}
                 <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4">
                     <h3 className="text-lg font-semibold text-blue-400 flex items-center gap-2">

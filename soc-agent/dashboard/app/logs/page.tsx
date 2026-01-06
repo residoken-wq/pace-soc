@@ -75,27 +75,75 @@ export default function LogsPage() {
         setAnalyzing(true);
         setShowAnalysisModal(true);
 
-        // Simulate AI Analysis
         setTimeout(() => {
             const errorCount = filteredLogs.filter(l => l.level === 'error').length;
             const warnCount = filteredLogs.filter(l => l.level === 'warn').length;
-            const topSource = sources[0]; // Simplified
+
+            // Heuristic Analysis Logic
+            const insights: string[] = [];
+            const recommendations: any[] = [];
+            const processedLogs = filteredLogs.map(l => l.message.toLowerCase());
+
+            // Pattern 1: Database Auth Failures
+            if (processedLogs.some(msg => msg.includes('failed to authenticate') || msg.includes('access denied'))) {
+                insights.push("Detected authentication failures for database or service accounts.");
+                recommendations.push({
+                    title: "Verify Service Credentials",
+                    steps: ["Check .env files for correct passwords", "Verify database user permissions", "Review access logs for potential unauthorized access"]
+                });
+            }
+
+            // Pattern 2: Rate Limiting
+            if (processedLogs.some(msg => msg.includes('rate limit') || msg.includes('throttling'))) {
+                insights.push("Services are hitting rate limits, which may degrade performance.");
+                recommendations.push({
+                    title: "Adjust Rate Limiting Strategies",
+                    steps: ["Increase threshold in configuration", "Implement exponential backoff in clients", "Check for abusive traffic sources"]
+                });
+            }
+
+            // Pattern 3: Deprecated APIs
+            if (processedLogs.some(msg => msg.includes('deprecated'))) {
+                insights.push("Logs contain warnings about deprecated API usage.");
+                recommendations.push({
+                    title: "Plan for API Upgrades",
+                    steps: ["Identify affected services from logs", "Review vendor documentation for upgrade paths", "Schedule maintenance window for updates"]
+                });
+            }
+
+            // Pattern 4: Network Issues
+            if (processedLogs.some(msg => msg.includes('timeout') || msg.includes('connection refused'))) {
+                insights.push("Network connectivity issues detected (timeouts/refusals).");
+                recommendations.push({
+                    title: "Troubleshoot Network Connectivity",
+                    steps: ["Check firewall rules (UFW/IPTables)", "Verify service status with 'systemctl status'", "Ensure DNS resolution is working correctly"]
+                });
+            }
+
+            // Fallback if no specific patterns found but errors exist
+            if (insights.length === 0 && errorCount > 0) {
+                insights.push("Multiple system errors detected without a specific known pattern.");
+                recommendations.push({
+                    title: "General System Health Check",
+                    steps: ["Review system resource usage (top/htop)", "Check disk space (df -h)", "Restart affected services"]
+                });
+            }
+
+            if (insights.length === 0) {
+                insights.push("System appears healthy with no critical anomalies detected.");
+                recommendations.push({
+                    title: "Routine Maintenance",
+                    steps: ["Continue monitoring logs", "Perform regular system updates", "Review backup status"]
+                });
+            }
 
             setAnalysisResult({
                 summary: `Analyzed ${filteredLogs.length} logs. Found ${errorCount} errors and ${warnCount} warnings.`,
-                insights: [
-                    "High frequency of 'Connection refused' errors suggests a potential network misconfiguration or firewall issue.",
-                    "Multiple 'Failed login attempt' warnings detected from external IPs, recommending immediate review of access logs and potential IP blocking.",
-                    `Source '${topSource}' is generating the most logs, consider tuning logging verbosity if this is unexpected.`
-                ],
-                recommendations: [
-                    "Check firewall rules for port 22 (SSH) and 80/443 (Web).",
-                    "Implement fail2ban or similar intrusion prevention for repeated login failures.",
-                    "Review 'node-exporter' configuration as it's reporting high memory usage frequently."
-                ]
+                insights: insights,
+                recommendations: recommendations
             });
             setAnalyzing(false);
-        }, 2000);
+        }, 1500);
     };
 
     const getLevelIcon = (level: string) => {

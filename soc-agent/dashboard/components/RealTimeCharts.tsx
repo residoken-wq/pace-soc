@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Activity, HardDrive, Wifi, Cpu } from 'lucide-react';
 
-export default function RealTimeCharts() {
+export default function RealTimeCharts({ agentName = "SOC Manager (Local)" }: { agentName?: string }) {
     const [data, setData] = useState<any[]>([]);
     const [currentMetrics, setCurrentMetrics] = useState({ cpu: 0, ram: 0, disk: 0, network: 0 });
     const [prevCpu, setPrevCpu] = useState<any>(null);
@@ -85,83 +85,89 @@ export default function RealTimeCharts() {
     }, [prevCpu, prevNetwork]);
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-emerald-400" />
+                {agentName}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-            {/* CPU Chart */}
-            <ChartCard title="CPU Usage" value={`${currentMetrics.cpu}%`} icon={<Cpu className="w-5 h-5 text-emerald-400" />} color="emerald">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data}>
-                        <defs>
-                            <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" hide />
-                        <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 100]} width={30} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }} />
-                        <Area type="monotone" dataKey="cpu" stroke="#10b981" fillOpacity={1} fill="url(#colorCpu)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </ChartCard>
+                {/* CPU Chart */}
+                <ChartCard title="CPU Usage" value={`${currentMetrics.cpu}%`} icon={<Cpu className="w-5 h-5 text-emerald-400" />} color="emerald">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data}>
+                            <defs>
+                                <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" hide />
+                            <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 100]} width={30} />
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }} />
+                            <Area type="monotone" dataKey="cpu" stroke="#10b981" fillOpacity={1} fill="url(#colorCpu)" />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </ChartCard>
 
-            {/* RAM Chart */}
-            <ChartCard title="Memory Usage" value={`${currentMetrics.ram}%`} icon={<Activity className="w-5 h-5 text-purple-400" />} color="purple">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data}>
-                        <defs>
-                            <linearGradient id="colorRam" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" hide />
-                        <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 100]} width={30} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }} />
-                        <Area type="monotone" dataKey="ram" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorRam)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </ChartCard>
+                {/* RAM Chart */}
+                <ChartCard title="Memory Usage" value={`${currentMetrics.ram}%`} icon={<Activity className="w-5 h-5 text-purple-400" />} color="purple">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data}>
+                            <defs>
+                                <linearGradient id="colorRam" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" hide />
+                            <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 100]} width={30} />
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }} />
+                            <Area type="monotone" dataKey="ram" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorRam)" />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </ChartCard>
 
-            {/* Disk Chart */}
-            <ChartCard title="Disk Usage" value={`${currentMetrics.disk}%`} icon={<HardDrive className="w-5 h-5 text-blue-400" />} color="blue">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data}>
-                        <defs>
-                            <linearGradient id="colorDisk" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" hide />
-                        <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 100]} width={30} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }} />
-                        <Area type="monotone" dataKey="disk" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDisk)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </ChartCard>
+                {/* Disk Chart */}
+                <ChartCard title="Disk Usage" value={`${currentMetrics.disk}%`} icon={<HardDrive className="w-5 h-5 text-blue-400" />} color="blue">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data}>
+                            <defs>
+                                <linearGradient id="colorDisk" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" hide />
+                            <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} domain={[0, 100]} width={30} />
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }} />
+                            <Area type="monotone" dataKey="disk" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDisk)" />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </ChartCard>
 
-            {/* Network Chart */}
-            <ChartCard title="Network (KB/s)" value={`${currentMetrics.network}`} icon={<Wifi className="w-5 h-5 text-orange-400" />} color="orange">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data}>
-                        <defs>
-                            <linearGradient id="colorNet" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" hide />
-                        <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} width={30} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }} />
-                        <Area type="monotone" dataKey="network" stroke="#f97316" fillOpacity={1} fill="url(#colorNet)" />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </ChartCard>
+                {/* Network Chart */}
+                <ChartCard title="Network (KB/s)" value={`${currentMetrics.network}`} icon={<Wifi className="w-5 h-5 text-orange-400" />} color="orange">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data}>
+                            <defs>
+                                <linearGradient id="colorNet" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#64748b" hide />
+                            <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} width={30} />
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f1f5f9' }} />
+                            <Area type="monotone" dataKey="network" stroke="#f97316" fillOpacity={1} fill="url(#colorNet)" />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </ChartCard>
+            </div>
         </div>
     );
 }
