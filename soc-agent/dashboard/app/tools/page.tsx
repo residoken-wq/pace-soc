@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Navbar from '../../components/Navbar';
+import SystemDiagnostics from '../../components/SystemDiagnostics';
 import { Wifi, Search, CheckCircle, XCircle, Loader2, Terminal, Download, Plus, Network, Activity } from 'lucide-react';
 
 interface ScanResult {
