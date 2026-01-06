@@ -1,27 +1,44 @@
 
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        // Connect to Node Exporter via host gateway
-        const response = await fetch('http://host.docker.internal:9100/metrics', {
-            next: { revalidate: 5 } // Cache for 5s
+        // Check for agent IP query parameter
+        const { searchParams } = new URL(request.url);
+        const agentIp = searchParams.get('agentIp');
+
+        // Determine metrics source URL
+        let metricsUrl = 'http://host.docker.internal:9100/metrics'; // Default: local
+
+        if (agentIp && agentIp !== '127.0.0.1' && agentIp !== 'localhost') {
+            // Fetch from remote agent's Node Exporter
+            metricsUrl = `http://${agentIp}:9100/metrics`;
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+        const response = await fetch(metricsUrl, {
+            signal: controller.signal,
+            next: { revalidate: 0 } // No cache for real-time
         });
 
+        clearTimeout(timeout);
+
         if (!response.ok) {
-            return NextResponse.json({ error: 'Failed to fetch metrics' }, { status: 502 });
+            return NextResponse.json({ error: 'Failed to fetch metrics', source: metricsUrl }, { status: 502 });
         }
 
         const text = await response.text();
         const metrics = parsePrometheusMetrics(text);
 
-        return NextResponse.json(metrics);
-    } catch (error) {
-        console.error("Metrics Fetch Error:", error);
-        // Fallback for dev/local testing where host.docker.internal might fail or NE is missing
+        return NextResponse.json({ ...metrics, source: agentIp || 'local' });
+    } catch (error: any) {
+        console.error("Metrics Fetch Error:", error?.message);
+        // Fallback with error indicator
         return NextResponse.json(
-            { cpu: 0, ram: 0, disk: 0, error: 'Connection refused' },
-            { status: 200 } // Return 200 with 0s to prevent UI crash, but indicate error
+            { cpu: { total: 0, idle: 0 }, ram: { percent: 0 }, disk: { percent: 0 }, network: { total: 0 }, error: error?.message || 'Connection failed' },
+            { status: 200 }
         );
     }
 }

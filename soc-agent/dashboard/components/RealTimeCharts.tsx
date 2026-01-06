@@ -5,16 +5,25 @@ import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Activity, HardDrive, Wifi, Cpu } from 'lucide-react';
 
-export default function RealTimeCharts({ agentName = "SOC Manager (Local)" }: { agentName?: string }) {
+export default function RealTimeCharts({ agentName = "SOC Manager (Local)", agentIp }: { agentName?: string; agentIp?: string }) {
     const [data, setData] = useState<any[]>([]);
     const [currentMetrics, setCurrentMetrics] = useState({ cpu: 0, ram: 0, disk: 0, network: 0 });
     const [prevCpu, setPrevCpu] = useState<any>(null);
     const [prevNetwork, setPrevNetwork] = useState<any>(null);
 
+    // Reset data when agent changes
     useEffect(() => {
-        const interval = setInterval(async () => {
+        setData([]);
+        setPrevCpu(null);
+        setPrevNetwork(null);
+        setCurrentMetrics({ cpu: 0, ram: 0, disk: 0, network: 0 });
+    }, [agentIp]);
+
+    useEffect(() => {
+        const fetchMetrics = async () => {
             try {
-                const res = await fetch('/api/metrics');
+                const url = agentIp ? `/api/metrics?agentIp=${agentIp}` : '/api/metrics';
+                const res = await fetch(url);
                 const metrics = await res.json();
 
                 if (metrics.error && !metrics.cpu) return;
@@ -79,10 +88,13 @@ export default function RealTimeCharts({ agentName = "SOC Manager (Local)" }: { 
             } catch (e) {
                 console.error("Polling error", e);
             }
-        }, 2000);
+        };
+
+        fetchMetrics(); // Initial fetch
+        const interval = setInterval(fetchMetrics, 2000);
 
         return () => clearInterval(interval);
-    }, [prevCpu, prevNetwork]);
+    }, [prevCpu, prevNetwork, agentIp]);
 
     return (
         <div className="space-y-4">

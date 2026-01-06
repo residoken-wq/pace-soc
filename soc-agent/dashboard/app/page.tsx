@@ -41,6 +41,7 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<{ name: string; ip: string } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -169,7 +170,10 @@ export default function Dashboard() {
         </div>
 
         {/* Real-time Charts */}
-        <RealTimeCharts />
+        <RealTimeCharts
+          agentName={selectedAgent ? selectedAgent.name : "SOC Manager (Local)"}
+          agentIp={selectedAgent ? selectedAgent.ip : undefined}
+        />
 
         {/* Agent Status Grid - Live Data */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
@@ -184,6 +188,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {agents.slice(0, 10).map(agent => {
               const agentMetrics = metrics[agent.id] || { cpu: 0, memory: 0, storage: 0 };
+              const isSelected = selectedAgent?.ip === agent.ip;
               return (
                 <AgentStatusTile
                   key={agent.id}
@@ -193,6 +198,8 @@ export default function Dashboard() {
                   cpu={agentMetrics.cpu}
                   memory={agentMetrics.memory}
                   storage={agentMetrics.storage}
+                  isSelected={isSelected}
+                  onClick={() => setSelectedAgent(isSelected ? null : { name: agent.name, ip: agent.ip })}
                 />
               );
             })}
@@ -322,11 +329,17 @@ function SummaryCard({ label, value, icon, color, trend }: any) {
 }
 
 // Agent Status Tile Component
-function AgentStatusTile({ name, ip, status, cpu, memory, storage }: any) {
+function AgentStatusTile({ name, ip, status, cpu, memory, storage, isSelected, onClick }: any) {
   const isActive = status === 'active';
 
   return (
-    <div className={`p-4 rounded-xl border ${isActive ? 'bg-slate-800/50 border-slate-700' : 'bg-red-500/5 border-red-500/30'} hover:bg-slate-800 transition-all cursor-pointer group`}>
+    <div
+      onClick={onClick}
+      className={`p-4 rounded-xl border transition-all cursor-pointer group
+        ${isSelected ? 'bg-emerald-500/10 border-emerald-500/50 ring-2 ring-emerald-500/30' :
+          isActive ? 'bg-slate-800/50 border-slate-700 hover:bg-slate-800' :
+            'bg-red-500/5 border-red-500/30 hover:bg-red-500/10'}`}
+    >
       <div className="flex items-center justify-between mb-2">
         <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-red-400'} animate-pulse`}></span>
         <span className="text-xs text-slate-500 font-mono">{ip}</span>
