@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
-import { Save, Bell, Server, Cpu, HardDrive, Check, Loader2, Database, Mail, MessageSquare, Wifi, XCircle } from 'lucide-react';
+import { Save, Bell, Server, Cpu, HardDrive, Check, Loader2, Database, Mail, MessageSquare, Wifi, XCircle, Trash2, AlertTriangle } from 'lucide-react';
 
 interface Settings {
     alertThresholds: {
@@ -311,6 +311,26 @@ export default function SettingsPage() {
                     </div>
                 </section>
 
+                {/* Log Cleanup / Data Retention */}
+                <section className="space-y-4">
+                    <h3 className="text-lg font-semibold text-red-400 flex items-center gap-2">
+                        <Trash2 className="w-5 h-5" /> Data Retention & Cleanup
+                    </h3>
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden p-6 space-y-4">
+                        <div className="flex items-start gap-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                            <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-yellow-400 font-medium">Automatic Log Cleanup</p>
+                                <p className="text-sm text-slate-400 mt-1">
+                                    Logs and alerts older than the retention period will be permanently deleted to save storage space.
+                                </p>
+                            </div>
+                        </div>
+
+                        <LogCleanupSection />
+                    </div>
+                </section>
+
                 {/* Save Button */}
                 <div className="flex justify-end">
                     <button
@@ -427,3 +447,108 @@ function TestConnectionButton({ settings }: { settings: Settings }) {
         </div>
     );
 }
+
+function LogCleanupSection() {
+    const [retentionDays, setRetentionDays] = useState(180); // 6 months default
+    const [cleaning, setCleaning] = useState(false);
+    const [result, setResult] = useState<{ success: boolean; message: string; deleted?: number } | null>(null);
+    const [showConfirm, setShowConfirm] = useState(false);
+
+    const handleCleanup = async () => {
+        setCleaning(true);
+        setResult(null);
+        try {
+            const res = await fetch('/api/logs/cleanup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ retentionDays })
+            });
+            const data = await res.json();
+            setResult({
+                success: data.success,
+                message: data.message || data.error,
+                deleted: data.deleted
+            });
+        } catch (e: any) {
+            setResult({ success: false, message: e.message });
+        } finally {
+            setCleaning(false);
+            setShowConfirm(false);
+        }
+    };
+
+    const retentionOptions = [
+        { value: 30, label: '1 Month' },
+        { value: 90, label: '3 Months' },
+        { value: 180, label: '6 Months' },
+        { value: 365, label: '1 Year' },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <div>
+                <label className="block text-sm text-slate-300 mb-2">Log Retention Period</label>
+                <div className="flex gap-2 flex-wrap">
+                    {retentionOptions.map(opt => (
+                        <button
+                            key={opt.value}
+                            onClick={() => setRetentionDays(opt.value)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${retentionDays === opt.value
+                                    ? 'bg-red-500/20 text-red-400 border border-red-500/50'
+                                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                }`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                    Logs older than {retentionDays} days will be deleted when cleanup runs.
+                </p>
+            </div>
+
+            <div className="flex items-center gap-4 pt-4 border-t border-slate-700">
+                {!showConfirm ? (
+                    <button
+                        onClick={() => setShowConfirm(true)}
+                        className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm flex items-center gap-2"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        Clear Old Logs Now
+                    </button>
+                ) : (
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-400">Delete logs older than {retentionDays} days?</span>
+                        <button
+                            onClick={handleCleanup}
+                            disabled={cleaning}
+                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {cleaning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                            Confirm Delete
+                        </button>
+                        <button
+                            onClick={() => setShowConfirm(false)}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {result && (
+                <div className={`p-4 rounded-lg border ${result.success ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                    <div className="flex items-center gap-2">
+                        {result.success ? <Check className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                        <span>{result.message}</span>
+                        {result.deleted !== undefined && (
+                            <span className="ml-2 text-slate-400">({result.deleted} records deleted)</span>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
