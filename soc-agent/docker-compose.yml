@@ -80,10 +80,18 @@ services:
     ports:
       - "8080:3000"
     environment:
+      - NODE_ENV=production
       - NODE_TLS_REJECT_UNAUTHORIZED=0
+      # Wazuh API Connection
       - WAZUH_MANAGER_URL=https://host.docker.internal:55000
-      - WAZUH_API_USER=wazuh-wui
-      - WAZUH_API_PASSWORD=kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1
+      - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
+      - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD}
+      # Authentication
+      - SOC_ADMIN_PASSWORD=${SOC_ADMIN_PASSWORD:-SocAdmin@2024!}
+      - SOC_ANALYST_PASSWORD=${SOC_ANALYST_PASSWORD:-SocAnalyst@2024!}
+      - JWT_SECRET=${JWT_SECRET:-soc-jwt-secret-change-in-production}
+      # CORS
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-https://soc.pace.edu.vn}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:

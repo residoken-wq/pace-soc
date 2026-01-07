@@ -1,9 +1,41 @@
 
-import React from 'react';
-import { Shield, Settings, Bell, Network, FileText, BarChart3, Book } from 'lucide-react';
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import { Shield, Settings, Bell, Network, FileText, BarChart3, Book, LogOut, User } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
+    const [user, setUser] = useState<{ username: string; name: string; role: string } | null>(null);
+    const [showLogout, setShowLogout] = useState(false);
+    const router = useRouter();
+
+    useEffect(() => {
+        // Try to get user info from cookie (decoded from JWT)
+        const cookie = document.cookie.split(';').find(c => c.trim().startsWith('soc_auth='));
+        if (cookie) {
+            try {
+                const token = cookie.split('=')[1];
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                setUser({ username: payload.username, name: payload.name, role: payload.role });
+            } catch {
+                setUser(null);
+            }
+        }
+    }, []);
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            document.cookie = 'soc_auth=; Max-Age=0; path=/';
+            router.push('/login');
+            router.refresh();
+        } catch (err) {
+            console.error('Logout failed:', err);
+        }
+    };
+
     return (
         <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -36,6 +68,34 @@ export default function Navbar() {
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                         System Active
                     </span>
+
+                    {user && (
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowLogout(!showLogout)}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition-colors"
+                            >
+                                <User className="w-4 h-4" />
+                                <span className="hidden sm:inline">{user.name}</span>
+                            </button>
+
+                            {showLogout && (
+                                <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-2 z-50">
+                                    <div className="px-4 py-2 border-b border-slate-700">
+                                        <div className="text-sm text-slate-200">{user.name}</div>
+                                        <div className="text-xs text-slate-500">{user.role}</div>
+                                    </div>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700 flex items-center gap-2 transition-colors"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        Sign Out
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </header>
@@ -50,3 +110,4 @@ function NavLink({ href, label, icon }: { href: string; label: string; icon?: Re
         </Link>
     )
 }
+

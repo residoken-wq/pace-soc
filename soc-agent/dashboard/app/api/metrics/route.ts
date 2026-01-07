@@ -1,5 +1,5 @@
-
 import { NextResponse } from 'next/server';
+import { isAllowedAgentIp } from '../../../lib/auth';
 
 export async function GET(request: Request) {
     try {
@@ -11,6 +11,15 @@ export async function GET(request: Request) {
         let metricsUrl = 'http://host.docker.internal:9100/metrics'; // Default: local
 
         if (agentIp && agentIp !== '127.0.0.1' && agentIp !== 'localhost') {
+            // SSRF Protection: Validate IP against allowlist
+            if (!isAllowedAgentIp(agentIp)) {
+                console.warn(`[SECURITY] SSRF attempt blocked for IP: ${agentIp}`);
+                return NextResponse.json(
+                    { error: 'Access denied: IP not in allowlist', blocked: true },
+                    { status: 403 }
+                );
+            }
+
             // Fetch from remote agent's Node Exporter
             metricsUrl = `http://${agentIp}:9100/metrics`;
         }

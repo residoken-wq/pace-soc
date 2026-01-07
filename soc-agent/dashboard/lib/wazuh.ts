@@ -2,12 +2,20 @@
 // Handles self-signed SSL certificates for Next.js 14+
 
 // CRITICAL: Disable SSL verification globally for this process
-// Must be set before any fetch calls
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// This is required for self-signed certificates on internal Wazuh servers
+// In production, consider using proper CA-signed certificates
+if (process.env.NODE_ENV !== 'test') {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 const WAZUH_MANAGER_URL = process.env.WAZUH_MANAGER_URL || 'https://192.168.1.206:55000';
 const WAZUH_API_USER = process.env.WAZUH_API_USER || 'wazuh-wui';
-const WAZUH_API_PASSWORD = process.env.WAZUH_API_PASSWORD || 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1';
+const WAZUH_API_PASSWORD = process.env.WAZUH_API_PASSWORD;
+
+// Validate required environment variables
+if (!WAZUH_API_PASSWORD) {
+    console.warn('[SECURITY] WAZUH_API_PASSWORD not set in environment variables!');
+}
 
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;

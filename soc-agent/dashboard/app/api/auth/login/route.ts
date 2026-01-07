@@ -1,62 +1,71 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-
-// Simple users database - in production, use a real database
-const USERS = [
-    { id: 1, username: 'admin', password: 'admin', role: 'admin', name: 'Administrator' },
-    { id: 2, username: 'analyst', password: 'analyst', role: 'analyst', name: 'SOC Analyst' },
-    { id: 3, username: 'viewer', password: 'viewer', role: 'viewer', name: 'Viewer' }
-];
-
-// Simple token generation - in production, use JWT
-function generateToken(userId: number): string {
-    const payload = {
-        userId,
-        exp: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-        random: Math.random().toString(36).substring(7)
-    };
-    return Buffer.from(JSON.stringify(payload)).toString('base64');
-}
+import { createToken, validateCredentials } from '../../../../lib/auth';
 
 export async function POST(request: Request) {
     try {
         const { username, password } = await request.json();
 
-        const user = USERS.find(u => u.username === username && u.password === password);
+        if (!username || !password) {
+            return NextResponse.json({
+                success: false,
+                error: 'Username and password are required'
+            }, { status: 400 });
+        }
 
-        if (!user) {
+        const validation = validateCredentials(username, password);
+
+        if (!validation.valid) {
+            // Log failed attempt (security audit)
+            console.warn(`[AUTH] Failed login attempt for user: ${username} from IP: ${request.headers.get('x-forwarded-for') || 'unknown'}`);
+
             return NextResponse.json({
                 success: false,
                 error: 'Invalid username or password'
             }, { status: 401 });
         }
 
-        const token = generateToken(user.id);
+        // Generate JWT token
+        const token = createToken(username, validation.role!, validation.name!);
 
-        // Set cookie
+        // Set secure cookie
         const cookieStore = await cookies();
         cookieStore.set('soc_auth', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 24 * 60 * 60 // 24 hours
+            sameSite: 'strict',
+            maxAge: 60 * 60, // 1 hour
+            path: '/'
         });
+
+        console.log(`[AUTH] Successful login for user: ${username}`);
 
         return NextResponse.json({
             success: true,
-            token,
             user: {
-                id: user.id,
-                username: user.username,
-                name: user.name,
-                role: user.role
+                username,
+                name: validation.name,
+                role: validation.role
             }
         });
 
     } catch (error: any) {
+        console.error('[AUTH] Login error:', error);
         return NextResponse.json({
             success: false,
-            error: error.message
+            error: 'Internal server error'
         }, { status: 500 });
     }
+}
+
+// Handle preflight requests for CORS
+export async function OPTIONS() {
+    return new NextResponse(null, {
+        status: 204,
+        headers: {
+            'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN || '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+        }
+    });
 }

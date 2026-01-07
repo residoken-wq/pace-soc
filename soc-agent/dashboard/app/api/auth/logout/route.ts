@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 export async function POST() {
     try {
         const cookieStore = await cookies();
+
+        // Clear the auth cookie
         cookieStore.delete('soc_auth');
 
         return NextResponse.json({
@@ -16,4 +18,9 @@ export async function POST() {
             error: error.message
         }, { status: 500 });
     }
+}
+
+export async function GET() {
+    // Also support GET for simple logout links
+    return POST();
 }
