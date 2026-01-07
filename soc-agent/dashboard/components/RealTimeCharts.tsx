@@ -5,11 +5,12 @@ import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Activity, HardDrive, Wifi, Cpu } from 'lucide-react';
 
-export default function RealTimeCharts({ agentName = "SOC Manager (Local)", agentIp }: { agentName?: string; agentIp?: string }) {
+export default function RealTimeCharts({ agentName = "SOC Manager (Local)", agentIp, agentId }: { agentName?: string; agentIp?: string; agentId?: string }) {
     const [data, setData] = useState<any[]>([]);
     const [currentMetrics, setCurrentMetrics] = useState({ cpu: 0, ram: 0, disk: 0, network: 0 });
     const [prevCpu, setPrevCpu] = useState<any>(null);
     const [prevNetwork, setPrevNetwork] = useState<any>(null);
+    const [useWazuh, setUseWazuh] = useState(false); // Fallback to Wazuh if Node Exporter fails
 
     // Reset data when agent changes
     useEffect(() => {
@@ -17,61 +18,115 @@ export default function RealTimeCharts({ agentName = "SOC Manager (Local)", agen
         setPrevCpu(null);
         setPrevNetwork(null);
         setCurrentMetrics({ cpu: 0, ram: 0, disk: 0, network: 0 });
-    }, [agentIp]);
+        setUseWazuh(false); // Reset to try Node Exporter first
+    }, [agentIp, agentId]);
 
     useEffect(() => {
         const fetchMetrics = async () => {
             try {
-                const url = agentIp ? `/api/metrics?agentIp=${agentIp}` : '/api/metrics';
-                const res = await fetch(url);
-                const metrics = await res.json();
+                let metrics: any = null;
+                let fromWazuh = false;
 
-                if (metrics.error && !metrics.cpu) return;
+                // Try Node Exporter first (works for Linux agents)
+                if (!useWazuh && agentIp) {
+                    try {
+                        const res = await fetch(`/api/metrics?agentIp=${agentIp}`);
+                        const data = await res.json();
 
-                // Calculate CPU % based on delta
+                        // Check if we got valid data (not error or all zeros from unreachable agent)
+                        if (!data.error && data.cpu && data.cpu.total > 0) {
+                            metrics = data;
+                        } else {
+                            // Node Exporter not available, switch to Wazuh
+                            console.log(`Node Exporter unavailable for ${agentIp}, switching to Wazuh syscollector`);
+                            setUseWazuh(true);
+                        }
+                    } catch (e) {
+                        console.log(`Node Exporter failed for ${agentIp}, switching to Wazuh syscollector`);
+                        setUseWazuh(true);
+                    }
+                }
+
+                // Use Wazuh syscollector for Windows agents or if Node Exporter failed
+                if (!metrics && (useWazuh || !agentIp)) {
+                    const syscollectorUrl = agentId
+                        ? `/api/wazuh/syscollector?agentId=${agentId}`
+                        : '/api/wazuh/syscollector';
+
+                    const res = await fetch(syscollectorUrl);
+                    const data = await res.json();
+
+                    if (data.success && data.metrics) {
+                        // Handle single agent or array
+                        const agentMetrics = Array.isArray(data.metrics)
+                            ? data.metrics.find((m: any) => m.agentId === agentId) || data.metrics[0]
+                            : data.metrics;
+
+                        if (agentMetrics) {
+                            metrics = {
+                                cpu: { total: agentMetrics.cpu || 0, idle: 0 },
+                                ram: { percent: agentMetrics.memory || 0 },
+                                disk: { percent: agentMetrics.storage || 0 },
+                                network: { total: 0 }
+                            };
+                            fromWazuh = true;
+                        }
+                    }
+                }
+
+                // Default: fetch local metrics
+                if (!metrics && !agentIp) {
+                    const res = await fetch('/api/metrics');
+                    metrics = await res.json();
+                }
+
+                if (!metrics || (metrics.error && !metrics.cpu)) return;
+
+                // Calculate CPU % based on delta (only for Node Exporter)
                 let cpuPercent = 0;
-                if (prevCpu && metrics.cpu) {
+                if (!fromWazuh && prevCpu && metrics.cpu) {
                     const deltaTotal = metrics.cpu.total - prevCpu.total;
                     const deltaIdle = metrics.cpu.idle - prevCpu.idle;
-                    // prevent divide by zero
                     if (deltaTotal > 0) {
                         cpuPercent = ((deltaTotal - deltaIdle) / deltaTotal) * 100;
                     }
+                } else if (fromWazuh) {
+                    cpuPercent = metrics.cpu?.total || 0;
                 }
 
                 // Calculate Network Speed (KB/s) based on delta
                 let networkSpeed = 0;
-                if (prevNetwork && metrics.network) {
+                if (!fromWazuh && prevNetwork && metrics.network) {
                     const deltaBytes = metrics.network.total - prevNetwork.total;
                     if (deltaBytes >= 0) {
-                        networkSpeed = deltaBytes / 1024 / 2; // KB per second (interval is 2s)
+                        networkSpeed = deltaBytes / 1024 / 2;
                     }
                 }
 
-                // Fallback for simulation if no real data change (demo mode)
+                // Fallback for demo mode
                 if (cpuPercent === 0 && (!metrics.cpu || metrics.cpu.total === 0)) cpuPercent = Math.random() * 20 + 5;
-                if (networkSpeed === 0 && (!metrics.network || metrics.network.total === 0)) networkSpeed = Math.random() * 50 + 10;
+                if (networkSpeed === 0 && !fromWazuh) networkSpeed = Math.random() * 50 + 10;
 
-                // Disk percent
-                const diskPercent = metrics.disk ? metrics.disk.percent : (Math.random() * 5 + 40); // Demo fallback
+                const diskPercent = metrics.disk ? metrics.disk.percent : (Math.random() * 5 + 40);
+                const ramPercent = metrics.ram ? metrics.ram.percent : 0;
 
                 // Update Previous
-                setPrevCpu(metrics.cpu);
-                setPrevNetwork(metrics.network);
+                if (!fromWazuh) {
+                    setPrevCpu(metrics.cpu);
+                    setPrevNetwork(metrics.network);
+                }
 
-                // Format current time
                 const now = new Date();
                 const timeStr = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
                 const newDataPoint = {
                     name: timeStr,
                     cpu: Math.max(0, Math.min(100, Math.round(cpuPercent))),
-                    ram: metrics.ram ? metrics.ram.percent : 0,
+                    ram: Math.round(ramPercent),
                     disk: Math.round(diskPercent),
                     network: Math.round(networkSpeed)
                 };
 
-                // Update Current Display
                 setCurrentMetrics({
                     cpu: newDataPoint.cpu,
                     ram: newDataPoint.ram,
@@ -79,7 +134,6 @@ export default function RealTimeCharts({ agentName = "SOC Manager (Local)", agen
                     network: newDataPoint.network
                 });
 
-                // Update Chart History (Keep last 20 points)
                 setData(prevData => {
                     const newData = [...prevData, newDataPoint];
                     return newData.slice(-20);
@@ -90,11 +144,11 @@ export default function RealTimeCharts({ agentName = "SOC Manager (Local)", agen
             }
         };
 
-        fetchMetrics(); // Initial fetch
+        fetchMetrics();
         const interval = setInterval(fetchMetrics, 2000);
 
         return () => clearInterval(interval);
-    }, [prevCpu, prevNetwork, agentIp]);
+    }, [prevCpu, prevNetwork, agentIp, agentId, useWazuh]);
 
     return (
         <div className="space-y-4">

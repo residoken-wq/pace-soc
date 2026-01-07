@@ -41,7 +41,7 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<{ name: string; ip: string } | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<{ id: string; name: string; ip: string } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -173,6 +173,7 @@ export default function Dashboard() {
         <RealTimeCharts
           agentName={selectedAgent ? selectedAgent.name : "SOC Manager (Local)"}
           agentIp={selectedAgent ? selectedAgent.ip : undefined}
+          agentId={selectedAgent ? selectedAgent.id : undefined}
         />
 
         {/* Agent Status Grid - Live Data */}
@@ -199,7 +200,7 @@ export default function Dashboard() {
                   memory={agentMetrics.memory}
                   storage={agentMetrics.storage}
                   isSelected={isSelected}
-                  onClick={() => setSelectedAgent(isSelected ? null : { name: agent.name, ip: agent.ip })}
+                  onClick={() => setSelectedAgent(isSelected ? null : { id: agent.id, name: agent.name, ip: agent.ip })}
                 />
               );
             })}
