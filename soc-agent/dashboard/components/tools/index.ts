@@ -2,3 +2,4 @@
 export * from './PingTool';
 export * from './ScanTool';
 export * from './InstallScript';
+export * from './PortScan';
