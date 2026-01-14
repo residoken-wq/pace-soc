@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server';
-
-const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://192.168.1.206:9200';
-const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
-const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_API_PASSWORD || 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1';
+import { wazuhFetch } from '../../../lib/wazuh';
 
 interface LogEntry {
     id: string;
@@ -16,8 +13,17 @@ interface LogEntry {
     ruleLevel?: number;
 }
 
-// Map Wazuh rule level to log level
-function getLogLevel(ruleLevel: number): 'error' | 'warn' | 'info' | 'debug' {
+// Map log level string to our enum
+function getLogLevel(level: string): 'error' | 'warn' | 'info' | 'debug' {
+    const upper = level?.toUpperCase() || '';
+    if (upper === 'CRITICAL' || upper === 'ERROR') return 'error';
+    if (upper === 'WARNING') return 'warn';
+    if (upper === 'INFO') return 'info';
+    return 'debug';
+}
+
+// Map numeric rule level to log level
+function getRuleLevelToLogLevel(ruleLevel: number): 'error' | 'warn' | 'info' | 'debug' {
     if (ruleLevel >= 12) return 'error';
     if (ruleLevel >= 7) return 'warn';
     if (ruleLevel >= 4) return 'info';
@@ -28,98 +34,105 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const limit = parseInt(searchParams.get('limit') || '100');
-        const level = searchParams.get('level'); // Optional filter
-        const agent = searchParams.get('agent'); // Optional filter
-        const search = searchParams.get('search'); // Optional search term
+        const levelFilter = searchParams.get('level');
+        const sourceFilter = searchParams.get('source');
+        const search = searchParams.get('search');
 
-        // Build Elasticsearch query
-        const must: any[] = [];
+        let logs: LogEntry[] = [];
+
+        // 1. Get Manager Logs (main source)
+        try {
+            const logsData = await wazuhFetch('/manager/logs?limit=500&sort=-timestamp');
+
+            if (logsData.data?.affected_items) {
+                logs = logsData.data.affected_items.map((log: any, index: number) => ({
+                    id: `mlog-${index}`,
+                    timestamp: log.timestamp,
+                    level: getLogLevel(log.level),
+                    source: log.tag || 'wazuh-manager',
+                    agent: 'wazuh-manager',
+                    ip: '127.0.0.1',
+                    message: log.description || log.tag || 'No description',
+                    ruleLevel: log.level === 'CRITICAL' ? 15 : log.level === 'ERROR' ? 12 : log.level === 'WARNING' ? 7 : 3
+                }));
+            }
+        } catch (e) {
+            console.log('Manager logs not available');
+        }
+
+        // 2. Get Agent Logs from active agents
+        try {
+            const agentsData = await wazuhFetch('/agents?status=active&limit=20');
+            const activeAgents = agentsData.data?.affected_items || [];
+
+            for (const agent of activeAgents) {
+                if (agent.id === '000') continue; // Skip manager
+
+                // Try syscheck for file changes
+                try {
+                    const syscheckData = await wazuhFetch(`/syscheck/${agent.id}?limit=20&sort=-date`);
+                    if (syscheckData.data?.affected_items) {
+                        const syscheckLogs = syscheckData.data.affected_items.map((item: any, idx: number) => ({
+                            id: `syscheck-${agent.id}-${idx}`,
+                            timestamp: item.date || new Date().toISOString(),
+                            level: item.event === 'deleted' ? 'error' : item.event === 'modified' ? 'warn' : 'info',
+                            source: 'syscheck',
+                            agent: agent.name,
+                            ip: agent.ip || '-',
+                            message: `[syscheck] File ${item.event}: ${item.file}`,
+                            ruleLevel: item.event === 'deleted' ? 12 : 7
+                        }));
+                        logs = [...logs, ...syscheckLogs];
+                    }
+                } catch (e) { /* continue */ }
+            }
+        } catch (e) {
+            console.log('Agents data not available');
+        }
+
+        // Apply filters
+        let filtered = logs;
 
         // Level filter
-        if (level && level !== 'all') {
-            const levelMap: Record<string, { gte: number; lt?: number }> = {
-                'error': { gte: 12 },
-                'warn': { gte: 7, lt: 12 },
-                'info': { gte: 4, lt: 7 },
-                'debug': { gte: 0, lt: 4 }
-            };
-            if (levelMap[level]) {
-                must.push({ range: { 'rule.level': levelMap[level] } });
-            }
+        if (levelFilter && levelFilter !== 'all') {
+            filtered = filtered.filter(log => log.level === levelFilter);
         }
 
-        // Agent filter
-        if (agent && agent !== 'all') {
-            must.push({ match: { 'agent.name': agent } });
+        // Source filter
+        if (sourceFilter && sourceFilter !== 'all') {
+            filtered = filtered.filter(log => log.source.toLowerCase().includes(sourceFilter.toLowerCase()));
         }
 
-        // Search term
+        // Search filter
         if (search) {
-            must.push({
-                multi_match: {
-                    query: search,
-                    fields: ['rule.description', 'full_log', 'agent.name', 'location']
-                }
-            });
+            const searchLower = search.toLowerCase();
+            filtered = filtered.filter(log =>
+                log.message.toLowerCase().includes(searchLower) ||
+                log.agent.toLowerCase().includes(searchLower) ||
+                log.source.toLowerCase().includes(searchLower)
+            );
         }
 
-        const query = {
-            size: limit,
-            sort: [{ '@timestamp': 'desc' }],
-            query: must.length > 0 ? { bool: { must } } : { match_all: {} }
-        };
-
-        const response = await fetch(`${WAZUH_INDEXER_URL}/wazuh-alerts-*/_search`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64')
-            },
-            body: JSON.stringify(query)
-        });
-
-        if (!response.ok) {
-            throw new Error(`Wazuh Indexer error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const hits = data.hits?.hits || [];
-
-        // Transform Wazuh alerts to log entries
-        const logs: LogEntry[] = hits.map((hit: any, index: number) => {
-            const source = hit._source;
-            const ruleLevel = source.rule?.level || 0;
-
-            return {
-                id: hit._id || `log-${index}`,
-                timestamp: source['@timestamp'] || source.timestamp,
-                level: getLogLevel(ruleLevel),
-                source: source.decoder?.name || source.manager?.name || 'wazuh',
-                agent: source.agent?.name || 'unknown',
-                ip: source.agent?.ip || '-',
-                message: source.rule?.description || source.full_log || 'No description',
-                ruleId: source.rule?.id,
-                ruleLevel: ruleLevel
-            };
-        });
+        // Sort by timestamp desc
+        filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
         return NextResponse.json({
             success: true,
-            total: data.hits?.total?.value || logs.length,
-            source: 'wazuh-indexer',
-            logs
+            total: filtered.length,
+            source: 'wazuh-manager',
+            logs: filtered.slice(0, limit)
         });
 
     } catch (error: any) {
         console.error('Logs API Error:', error.message);
 
-        // Return empty logs with error info (no more mock data)
         return NextResponse.json({
             success: false,
             error: error.message,
             source: 'error',
             total: 0,
-            logs: []
+            logs: [],
+            message: 'Cannot connect to Wazuh Manager. Please check connection settings.'
         });
     }
 }
