@@ -18,7 +18,7 @@ export default function LogsPage() {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState({ level: 'all', source: 'all', search: '' });
-    const [autoRefresh, setAutoRefresh] = useState(false);
+    const [autoRefresh, setAutoRefresh] = useState(true); // Default ON for real-time
 
     // AI Analysis State
     const [analyzing, setAnalyzing] = useState(false);

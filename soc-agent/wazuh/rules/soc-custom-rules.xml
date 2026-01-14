@@ -1,0 +1,198 @@
+<!--
+  SOC Custom Security Rules for Wazuh
+  Copy this file to: /var/ossec/etc/rules/soc-custom-rules.xml on Wazuh Manager
+  Then run: /var/ossec/bin/wazuh-control restart
+-->
+
+<group name="soc,custom,">
+
+    <!-- ============================================ -->
+    <!-- DDoS / Connection Flood Detection -->
+    <!-- ============================================ -->
+    
+    <rule id="100200" level="12">
+        <if_sid>5700</if_sid>
+        <match>Connection refused|Too many connections|Connection reset</match>
+        <description>Possible DDoS: High connection rate detected</description>
+        <mitre>
+            <id>T1498</id>
+            <id>T1499</id>
+        </mitre>
+        <group>ddos,attack,</group>
+    </rule>
+
+    <rule id="100201" level="14">
+        <if_sid>5700,5710</if_sid>
+        <frequency>100</frequency>
+        <timeframe>60</timeframe>
+        <same_source_ip />
+        <description>DDoS Attack: 100+ connections from same IP in 60 seconds</description>
+        <mitre>
+            <id>T1498</id>
+        </mitre>
+        <group>ddos,attack,</group>
+    </rule>
+
+    <rule id="100202" level="12">
+        <match>SYN flood|syn_flood|syncookies</match>
+        <description>SYN Flood attack detected</description>
+        <mitre>
+            <id>T1498.001</id>
+        </mitre>
+        <group>ddos,network_attack,</group>
+    </rule>
+
+    <!-- ============================================ -->
+    <!-- Brute-force Attack Detection -->
+    <!-- ============================================ -->
+    
+    <rule id="100300" level="10">
+        <if_sid>5710</if_sid>
+        <same_source_ip />
+        <frequency>5</frequency>
+        <timeframe>60</timeframe>
+        <description>SSH Brute-force: 5+ failed attempts from same IP in 60 seconds</description>
+        <mitre>
+            <id>T1110</id>
+            <id>T1110.001</id>
+        </mitre>
+        <group>brute_force,ssh,authentication_failed,</group>
+    </rule>
+
+    <rule id="100301" level="12">
+        <if_sid>5710</if_sid>
+        <same_source_ip />
+        <frequency>10</frequency>
+        <timeframe>120</timeframe>
+        <description>SSH Brute-force CRITICAL: 10+ failed attempts - Consider blocking IP</description>
+        <mitre>
+            <id>T1110</id>
+        </mitre>
+        <group>brute_force,ssh,</group>
+    </rule>
+
+    <rule id="100302" level="10">
+        <if_group>web,authentication_failed</if_group>
+        <same_source_ip />
+        <frequency>5</frequency>
+        <timeframe>60</timeframe>
+        <description>Web Application Brute-force: Multiple failed login attempts</description>
+        <mitre>
+            <id>T1110.001</id>
+        </mitre>
+        <group>brute_force,web,</group>
+    </rule>
+
+    <!-- ============================================ -->
+    <!-- Abnormal Login Detection -->
+    <!-- ============================================ -->
+    
+    <rule id="100400" level="10">
+        <if_sid>5501,5502</if_sid>
+        <time>22:00 - 06:00</time>
+        <description>Abnormal Login: Successful login during unusual hours (22:00-06:00)</description>
+        <mitre>
+            <id>T1078</id>
+        </mitre>
+        <group>abnormal_login,authentication_success,</group>
+    </rule>
+
+    <rule id="100401" level="12">
+        <if_sid>5501</if_sid>
+        <user>root</user>
+        <description>Direct root login detected - Security policy violation</description>
+        <mitre>
+            <id>T1078.003</id>
+        </mitre>
+        <group>abnormal_login,policy_violation,</group>
+    </rule>
+
+    <rule id="100402" level="10">
+        <if_sid>5715</if_sid>
+        <description>SSH login from new source IP - First time seen</description>
+        <mitre>
+            <id>T1078</id>
+        </mitre>
+        <group>abnormal_login,new_source,</group>
+    </rule>
+
+    <!-- ============================================ -->
+    <!-- Malicious File / Rootkit Detection -->
+    <!-- ============================================ -->
+    
+    <rule id="100500" level="12">
+        <if_group>syscheck</if_group>
+        <match>/bin/|/sbin/|/usr/bin/|/usr/sbin/</match>
+        <field name="event">modified</field>
+        <description>Critical System Binary Modified - Possible compromise</description>
+        <mitre>
+            <id>T1543</id>
+            <id>T1053</id>
+        </mitre>
+        <group>malicious_file,integrity_violation,</group>
+    </rule>
+
+    <rule id="100501" level="14">
+        <if_group>syscheck</if_group>
+        <match>/etc/passwd|/etc/shadow|/etc/sudoers</match>
+        <description>Critical Authentication File Modified - Possible backdoor</description>
+        <mitre>
+            <id>T1136</id>
+            <id>T1098</id>
+        </mitre>
+        <group>malicious_file,credential_access,</group>
+    </rule>
+
+    <rule id="100502" level="12">
+        <if_group>syscheck</if_group>
+        <match>\.sh$|\.py$|\.pl$</match>
+        <field name="path">/tmp|/var/tmp|/dev/shm</field>
+        <description>Suspicious script created in temporary directory</description>
+        <mitre>
+            <id>T1059</id>
+        </mitre>
+        <group>malicious_file,execution,</group>
+    </rule>
+
+    <!-- ============================================ -->
+    <!-- Privilege Escalation Detection -->
+    <!-- ============================================ -->
+    
+    <rule id="100600" level="10">
+        <if_sid>5400,5401</if_sid>
+        <match>NOPASSWD|ALL=(ALL)</match>
+        <description>Sudoers file modified with elevated permissions</description>
+        <mitre>
+            <id>T1548.003</id>
+        </mitre>
+        <group>privilege_escalation,sudo,</group>
+    </rule>
+
+    <rule id="100601" level="12">
+        <match>setuid|setgid|chmod.*[24]755</match>
+        <description>SUID/SGID bit set on file - Potential privilege escalation</description>
+        <mitre>
+            <id>T1548.001</id>
+        </mitre>
+        <group>privilege_escalation,setuid,</group>
+    </rule>
+
+    <!-- ============================================ -->
+    <!-- Service Monitoring -->
+    <!-- ============================================ -->
+    
+    <rule id="100700" level="10">
+        <match>node-exporter|node_exporter</match>
+        <match>stopped|failed|crashed</match>
+        <description>Node Exporter service stopped or crashed</description>
+        <group>service_monitoring,</group>
+    </rule>
+
+    <rule id="100701" level="10">
+        <match>wazuh-agent|ossec</match>
+        <match>stopped|disconnected</match>
+        <description>Wazuh Agent disconnected or stopped</description>
+        <group>service_monitoring,agent,</group>
+    </rule>
+
+</group>

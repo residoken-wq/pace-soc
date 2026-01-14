@@ -85,6 +85,44 @@ export async function GET(request: Request) {
                         logs = [...logs, ...syscheckLogs];
                     }
                 } catch (e) { /* continue */ }
+
+                // 3. Check node-exporter status for each agent
+                if (agent.ip && agent.ip !== '127.0.0.1') {
+                    try {
+                        const controller = new AbortController();
+                        const timeout = setTimeout(() => controller.abort(), 2000);
+
+                        const metricsRes = await fetch(`http://${agent.ip}:9100/metrics`, {
+                            signal: controller.signal
+                        }).catch(() => null);
+
+                        clearTimeout(timeout);
+
+                        logs.push({
+                            id: `node-exporter-${agent.id}`,
+                            timestamp: new Date().toISOString(),
+                            level: metricsRes?.ok ? 'info' : 'warn',
+                            source: 'node-exporter',
+                            agent: agent.name,
+                            ip: agent.ip,
+                            message: metricsRes?.ok
+                                ? `[node-exporter] Service running on ${agent.name}`
+                                : `[node-exporter] Service unreachable on ${agent.name}:9100`,
+                            ruleLevel: metricsRes?.ok ? 3 : 7
+                        });
+                    } catch (e) {
+                        logs.push({
+                            id: `node-exporter-${agent.id}`,
+                            timestamp: new Date().toISOString(),
+                            level: 'error',
+                            source: 'node-exporter',
+                            agent: agent.name,
+                            ip: agent.ip || '-',
+                            message: `[node-exporter] Connection failed to ${agent.name}`,
+                            ruleLevel: 12
+                        });
+                    }
+                }
             }
         } catch (e) {
             console.log('Agents data not available');
