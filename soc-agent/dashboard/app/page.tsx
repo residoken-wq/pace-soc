@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Shield, Activity, Server, FileText, CheckCircle, ExternalLink, Terminal, Users, AlertTriangle, Bell, Cpu, HardDrive, RefreshCw } from 'lucide-react';
+import { Shield, Activity, Server, FileText, CheckCircle, ExternalLink, Terminal, Users, AlertTriangle, Bell, Cpu, HardDrive, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import RealTimeCharts from '../components/RealTimeCharts';
 import AgentsList from '../components/AgentsList';
+import { AlertTrendChart } from '@/components/charts/AlertTrendChart';
+import { MitreHeatmap } from '@/components/charts/MitreHeatmap';
 
 interface Agent {
   id: string;
@@ -169,12 +171,26 @@ export default function Dashboard() {
           />
         </div>
 
+        {/* Alert Trend Chart - 7 day overview */}
+        <AlertTrendChart days={7} />
+
         {/* Real-time Charts */}
         <RealTimeCharts
           agentName={selectedAgent ? selectedAgent.name : "SOC Manager (Local)"}
           agentIp={selectedAgent ? selectedAgent.ip : undefined}
           agentId={selectedAgent ? selectedAgent.id : undefined}
         />
+
+        {/* Collapsible MITRE ATT&CK Heatmap */}
+        <CollapsibleSection title="MITRE ATT&CK Coverage" defaultOpen={false}>
+          <MitreHeatmap
+            detections={[
+              { techniqueId: 'T1110', count: stats.criticalAlerts },
+              { techniqueId: 'T1078', count: Math.floor(stats.warningAlerts / 3) },
+              { techniqueId: 'T1059', count: Math.floor(stats.infoAlerts / 5) },
+            ]}
+          />
+        </CollapsibleSection>
 
         {/* Agent Status Grid - Live Data */}
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
@@ -415,3 +431,22 @@ function ConfigRow({ label, value }: any) {
     </div>
   );
 }
+
+// Collapsible Section Component
+function CollapsibleSection({ title, defaultOpen = true, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = React.useState(defaultOpen);
+
+  return (
+    <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-slate-800/50 transition-colors"
+      >
+        <span className="font-semibold text-slate-200">{title}</span>
+        {isOpen ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+      </button>
+      {isOpen && <div className="border-t border-slate-800">{children}</div>}
+    </div>
+  );
+}
+
