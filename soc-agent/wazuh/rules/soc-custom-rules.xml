@@ -22,11 +22,9 @@
     </rule>
 
     <rule id="100201" level="14">
-        <if_sid>5700,5710</if_sid>
-        <frequency>100</frequency>
-        <timeframe>60</timeframe>
+        <if_sid>5700</if_sid>
         <same_source_ip />
-        <description>DDoS Attack: 100+ connections from same IP in 60 seconds</description>
+        <description>DDoS Attack: Multiple connection attempts from same IP</description>
         <mitre>
             <id>T1498</id>
         </mitre>
@@ -46,12 +44,11 @@
     <!-- Brute-force Attack Detection -->
     <!-- ============================================ -->
     
+    <!-- SSH Brute-force - uses parent composite rule -->
     <rule id="100300" level="10">
-        <if_sid>5710</if_sid>
+        <if_sid>5710,5716</if_sid>
         <same_source_ip />
-        <frequency>5</frequency>
-        <timeframe>60</timeframe>
-        <description>SSH Brute-force: 5+ failed attempts from same IP in 60 seconds</description>
+        <description>SSH Brute-force: Multiple failed attempts from same IP</description>
         <mitre>
             <id>T1110</id>
             <id>T1110.001</id>
@@ -60,11 +57,8 @@
     </rule>
 
     <rule id="100301" level="12">
-        <if_sid>5710</if_sid>
-        <same_source_ip />
-        <frequency>10</frequency>
-        <timeframe>120</timeframe>
-        <description>SSH Brute-force CRITICAL: 10+ failed attempts - Consider blocking IP</description>
+        <if_sid>5720</if_sid>
+        <description>SSH Brute-force CRITICAL: Multiple authentication failures detected</description>
         <mitre>
             <id>T1110</id>
         </mitre>
@@ -72,10 +66,9 @@
     </rule>
 
     <rule id="100302" level="10">
-        <if_group>web,authentication_failed</if_group>
+        <if_group>web</if_group>
+        <match>authentication failed|login failed|invalid password</match>
         <same_source_ip />
-        <frequency>5</frequency>
-        <timeframe>60</timeframe>
         <description>Web Application Brute-force: Multiple failed login attempts</description>
         <mitre>
             <id>T1110.001</id>
@@ -123,7 +116,6 @@
     <rule id="100500" level="12">
         <if_group>syscheck</if_group>
         <match>/bin/|/sbin/|/usr/bin/|/usr/sbin/</match>
-        <field name="event">modified</field>
         <description>Critical System Binary Modified - Possible compromise</description>
         <mitre>
             <id>T1543</id>
@@ -146,8 +138,7 @@
     <rule id="100502" level="12">
         <if_group>syscheck</if_group>
         <match>\.sh$|\.py$|\.pl$</match>
-        <field name="path">/tmp|/var/tmp|/dev/shm</field>
-        <description>Suspicious script created in temporary directory</description>
+        <description>Suspicious script detected in monitored directory</description>
         <mitre>
             <id>T1059</id>
         </mitre>
@@ -169,7 +160,7 @@
     </rule>
 
     <rule id="100601" level="12">
-        <match>setuid|setgid|chmod.*[24]755</match>
+        <match>setuid|setgid|chmod 4755|chmod 2755</match>
         <description>SUID/SGID bit set on file - Potential privilege escalation</description>
         <mitre>
             <id>T1548.001</id>
