@@ -55,6 +55,8 @@ export default function Navbar() {
                         <NavLink href="/" label="Overview" />
                         <NavLink href="/alerts" label="Alerts" icon={<Bell className="w-4 h-4" />} />
                         <NavLink href="/rules" label="Rules" icon={<FileText className="w-4 h-4" />} />
+                        <NavLink href="/mitre" label="MITRE" icon={<Shield className="w-4 h-4" />} />
+                        <NavLink href="/vulnerabilities" label="Vulns" icon={<Shield className="w-4 h-4" />} />
                         <NavLink href="/logs" label="Logs" icon={<FileText className="w-4 h-4" />} />
                         <NavLink href="/reports" label="Reports" icon={<BarChart3 className="w-4 h-4" />} />
                         <NavLink href="/tools" label="Tools" icon={<Network className="w-4 h-4" />} />
