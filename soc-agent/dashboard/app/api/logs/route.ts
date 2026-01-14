@@ -1,90 +1,124 @@
 import { NextResponse } from 'next/server';
 
-// Mock logs - in production, this would fetch from Loki, Elasticsearch, or file system
-const generateMockLogs = () => {
-    const sources = ['wazuh-agent', 'promtail', 'node-exporter', 'sshd', 'nginx', 'docker'];
-    const levels: ('error' | 'warn' | 'info' | 'debug')[] = ['error', 'warn', 'info', 'debug'];
+const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://192.168.1.206:9200';
+const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
+const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_API_PASSWORD || 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1';
 
-    // Agent definition with IPs
-    const agents = [
-        { name: 'soc-main', ip: '127.0.0.1' },
-        { name: 'web-srv-01', ip: '192.168.0.195' },
-        { name: 'db-primary', ip: '10.0.0.5' },
-        { name: 'atm-01', ip: '125.212.254.176' }
-    ];
+interface LogEntry {
+    id: string;
+    timestamp: string;
+    level: 'error' | 'warn' | 'info' | 'debug';
+    source: string;
+    agent: string;
+    ip: string;
+    message: string;
+    ruleId?: string;
+    ruleLevel?: number;
+}
 
-    const messages: Record<string, string[]> = {
-        error: [
-            'Connection refused to remote host',
-            'Failed to authenticate user',
-            'Disk space critical: 95% used',
-            'Service crashed unexpectedly',
-            'SSL certificate validation failed'
-        ],
-        warn: [
-            'High memory usage detected: 85%',
-            'Connection timeout, retrying...',
-            'Deprecated API endpoint accessed',
-            'Rate limit approaching threshold',
-            'Failed login attempt from unknown IP'
-        ],
-        info: [
-            'Service started successfully',
-            'New agent registered',
-            'Configuration reloaded',
-            'Backup completed',
-            'User logged in successfully'
-        ],
-        debug: [
-            'Processing request from 192.168.1.x',
-            'Cache hit for resource',
-            'Query executed in 45ms',
-            'WebSocket connection established',
-            'Heartbeat received from agent'
-        ]
-    };
+// Map Wazuh rule level to log level
+function getLogLevel(ruleLevel: number): 'error' | 'warn' | 'info' | 'debug' {
+    if (ruleLevel >= 12) return 'error';
+    if (ruleLevel >= 7) return 'warn';
+    if (ruleLevel >= 4) return 'info';
+    return 'debug';
+}
 
-    const logs = [];
-    const now = Date.now();
-
-    for (let i = 0; i < 50; i++) {
-        const level = levels[Math.floor(Math.random() * (i < 5 ? 2 : levels.length))];
-        const source = sources[Math.floor(Math.random() * sources.length)];
-        const agent = agents[Math.floor(Math.random() * agents.length)];
-        const msgs = messages[level];
-        const message = msgs[Math.floor(Math.random() * msgs.length)];
-
-        logs.push({
-            id: `log-${i}`,
-            timestamp: new Date(now - i * 60000 * Math.random() * 10).toISOString(),
-            level,
-            source,
-            agent: agent.name,
-            ip: agent.ip,
-            message: `[${source}] ${message}`
-        });
-    }
-
-    return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-};
-
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        // In production, fetch from Loki or log aggregator
-        // const lokiUrl = process.env.LOKI_URL || 'http://192.168.1.206:3100';
-        // const response = await fetch(`${lokiUrl}/loki/api/v1/query_range?query={job="soc"}`);
+        const { searchParams } = new URL(request.url);
+        const limit = parseInt(searchParams.get('limit') || '100');
+        const level = searchParams.get('level'); // Optional filter
+        const agent = searchParams.get('agent'); // Optional filter
+        const search = searchParams.get('search'); // Optional search term
 
-        const logs = generateMockLogs();
+        // Build Elasticsearch query
+        const must: any[] = [];
+
+        // Level filter
+        if (level && level !== 'all') {
+            const levelMap: Record<string, { gte: number; lt?: number }> = {
+                'error': { gte: 12 },
+                'warn': { gte: 7, lt: 12 },
+                'info': { gte: 4, lt: 7 },
+                'debug': { gte: 0, lt: 4 }
+            };
+            if (levelMap[level]) {
+                must.push({ range: { 'rule.level': levelMap[level] } });
+            }
+        }
+
+        // Agent filter
+        if (agent && agent !== 'all') {
+            must.push({ match: { 'agent.name': agent } });
+        }
+
+        // Search term
+        if (search) {
+            must.push({
+                multi_match: {
+                    query: search,
+                    fields: ['rule.description', 'full_log', 'agent.name', 'location']
+                }
+            });
+        }
+
+        const query = {
+            size: limit,
+            sort: [{ '@timestamp': 'desc' }],
+            query: must.length > 0 ? { bool: { must } } : { match_all: {} }
+        };
+
+        const response = await fetch(`${WAZUH_INDEXER_URL}/wazuh-alerts-*/_search`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64')
+            },
+            body: JSON.stringify(query)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Wazuh Indexer error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const hits = data.hits?.hits || [];
+
+        // Transform Wazuh alerts to log entries
+        const logs: LogEntry[] = hits.map((hit: any, index: number) => {
+            const source = hit._source;
+            const ruleLevel = source.rule?.level || 0;
+
+            return {
+                id: hit._id || `log-${index}`,
+                timestamp: source['@timestamp'] || source.timestamp,
+                level: getLogLevel(ruleLevel),
+                source: source.decoder?.name || source.manager?.name || 'wazuh',
+                agent: source.agent?.name || 'unknown',
+                ip: source.agent?.ip || '-',
+                message: source.rule?.description || source.full_log || 'No description',
+                ruleId: source.rule?.id,
+                ruleLevel: ruleLevel
+            };
+        });
 
         return NextResponse.json({
             success: true,
-            total: logs.length,
+            total: data.hits?.total?.value || logs.length,
+            source: 'wazuh-indexer',
             logs
         });
+
     } catch (error: any) {
+        console.error('Logs API Error:', error.message);
+
+        // Return empty logs with error info (no more mock data)
         return NextResponse.json({
             success: false,
             error: error.message,
+            source: 'error',
+            total: 0,
             logs: []
         });
     }
