@@ -77,17 +77,17 @@ services:
     build: ./dashboard
     container_name: soc-dashboard
     restart: unless-stopped
-    ports:
-      - "8080:3000"
+    network_mode: host # Use host network to access localhost:9200
     environment:
       - NODE_ENV=production
       - NODE_TLS_REJECT_UNAUTHORIZED=0
-      # Wazuh API Connection
-      - WAZUH_MANAGER_URL=https://host.docker.internal:55000
+      - PORT=3000
+      # Wazuh API Connection (localhost since host network)
+      - WAZUH_MANAGER_URL=https://127.0.0.1:55000
       - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
       - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD}
-      # Wazuh Indexer Connection (OpenSearch)
-      - WAZUH_INDEXER_URL=https://host.docker.internal:9200
+      # Wazuh Indexer Connection (localhost since host network)
+      - WAZUH_INDEXER_URL=https://127.0.0.1:9200
       - WAZUH_INDEXER_USER=${WAZUH_INDEXER_USER:-admin}
       # Authentication
       - SOC_ADMIN_PASSWORD=${SOC_ADMIN_PASSWORD:-SocAdmin@2024!}
@@ -97,10 +97,6 @@ services:
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-https://soc.pace.edu.vn}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - soc-net
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
 volumes:
   promtail-data:
