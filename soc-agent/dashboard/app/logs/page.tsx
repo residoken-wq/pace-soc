@@ -19,30 +19,33 @@ export default function LogsPage() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState({ level: 'all', source: 'all', search: '' });
     const [autoRefresh, setAutoRefresh] = useState(true); // Default ON for real-time
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
     // AI Analysis State
     const [analyzing, setAnalyzing] = useState(false);
     const [analysisResult, setAnalysisResult] = useState<any>(null);
     const [showAnalysisModal, setShowAnalysisModal] = useState(false);
 
-    const fetchLogs = async () => {
-        setLoading(true);
+    const fetchLogs = async (isRefresh = false) => {
+        // Only show loading on initial load, not refreshes
+        if (!isRefresh) setLoading(true);
         try {
             const res = await fetch('/api/logs');
             const data = await res.json();
             setLogs(data.logs || []);
+            setLastUpdated(new Date());
         } catch (e) {
             console.error(e);
         } finally {
-            setLoading(false);
+            if (!isRefresh) setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchLogs();
+        fetchLogs(false);
         let interval: NodeJS.Timeout;
         if (autoRefresh) {
-            interval = setInterval(fetchLogs, 10000);
+            interval = setInterval(() => fetchLogs(true), 5000); // 5s for real-time feel
         }
         return () => clearInterval(interval);
     }, [autoRefresh]);
@@ -191,7 +194,7 @@ export default function LogsPage() {
                             <Download className="w-4 h-4" /> Export CSV
                         </button>
                         <button
-                            onClick={fetchLogs}
+                            onClick={() => fetchLogs(false)}
                             disabled={loading}
                             className="p-2 rounded-lg hover:bg-slate-800 text-slate-400"
                         >
