@@ -60,7 +60,21 @@ export async function getWazuhToken(): Promise<string> {
     }
 }
 
+// Response cache to reduce API calls
+const responseCache: Map<string, { data: any; expiry: number }> = new Map();
+const CACHE_TTL = 30000; // 30 seconds cache
+
 export async function wazuhFetch(endpoint: string, options: RequestInit = {}): Promise<any> {
+    const cacheKey = `${options.method || 'GET'}:${endpoint}`;
+
+    // Return cached response if valid (only for GET requests)
+    if (options.method !== 'POST' && options.method !== 'PUT' && options.method !== 'DELETE') {
+        const cached = responseCache.get(cacheKey);
+        if (cached && Date.now() < cached.expiry) {
+            return cached.data;
+        }
+    }
+
     const token = await getWazuhToken();
 
     const controller = new AbortController();
@@ -79,11 +93,23 @@ export async function wazuhFetch(endpoint: string, options: RequestInit = {}): P
 
     clearTimeout(timeoutId);
 
+    // Handle rate limiting - wait and retry once
+    if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '5');
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        return wazuhFetch(endpoint, options); // Retry once
+    }
+
     if (!response.ok) {
         throw new Error(`Wazuh API Error: ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+
+    // Cache successful responses
+    responseCache.set(cacheKey, { data, expiry: Date.now() + CACHE_TTL });
+
+    return data;
 }
 
 export { WAZUH_MANAGER_URL };
