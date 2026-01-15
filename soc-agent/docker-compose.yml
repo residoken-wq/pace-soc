@@ -86,6 +86,9 @@ services:
       - WAZUH_MANAGER_URL=https://host.docker.internal:55000
       - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
       - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD}
+      # Wazuh Indexer Connection (OpenSearch)
+      - WAZUH_INDEXER_URL=https://host.docker.internal:9200
+      - WAZUH_INDEXER_USER=${WAZUH_INDEXER_USER:-admin}
       # Authentication
       - SOC_ADMIN_PASSWORD=${SOC_ADMIN_PASSWORD:-SocAdmin@2024!}
       - SOC_ANALYST_PASSWORD=${SOC_ANALYST_PASSWORD:-SocAnalyst@2024!}
