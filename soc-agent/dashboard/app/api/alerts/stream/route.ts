@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 
-const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://192.168.1.206:9200';
+const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://127.0.0.1:9200';
 const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
-const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_API_PASSWORD || 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1';
+const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_INDEXER_PASSWORD || process.env.WAZUH_API_PASSWORD || '';
 
 // Disable SSL verification for self-signed certs
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';

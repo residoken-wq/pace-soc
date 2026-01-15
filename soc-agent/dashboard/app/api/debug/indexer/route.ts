@@ -9,14 +9,14 @@ export async function GET() {
     };
 
     // Check environment variables
-    const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://192.168.1.206:9200';
+    const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://127.0.0.1:9200';
     const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
-    const WAZUH_API_PASSWORD = process.env.WAZUH_API_PASSWORD || '';
+    const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_INDEXER_PASSWORD || process.env.WAZUH_API_PASSWORD || '';
 
     results.environment = {
         WAZUH_INDEXER_URL,
         WAZUH_INDEXER_USER,
-        WAZUH_API_PASSWORD: WAZUH_API_PASSWORD ? '***SET***' : '***NOT SET***',
+        WAZUH_INDEXER_PASSWORD: WAZUH_INDEXER_PASSWORD ? '***SET***' : '***NOT SET***',
         NODE_TLS_REJECT_UNAUTHORIZED: process.env.NODE_TLS_REJECT_UNAUTHORIZED
     };
 
@@ -28,7 +28,7 @@ export async function GET() {
         const response = await fetch(WAZUH_INDEXER_URL, {
             method: 'GET',
             headers: {
-                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_API_PASSWORD}`).toString('base64')
+                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64')
             }
         });
 
@@ -50,7 +50,7 @@ export async function GET() {
     try {
         const response = await fetch(`${WAZUH_INDEXER_URL}/_cat/indices?v&h=index,docs.count&format=json`, {
             headers: {
-                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_API_PASSWORD}`).toString('base64')
+                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64')
             }
         });
 
@@ -89,7 +89,7 @@ export async function GET() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_API_PASSWORD}`).toString('base64')
+                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64')
             },
             body: JSON.stringify(query)
         });

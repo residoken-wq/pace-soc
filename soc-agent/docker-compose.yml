@@ -89,6 +89,7 @@ services:
       # Wazuh Indexer Connection (localhost since host network)
       - WAZUH_INDEXER_URL=https://127.0.0.1:9200
       - WAZUH_INDEXER_USER=${WAZUH_INDEXER_USER:-admin}
+      - WAZUH_INDEXER_PASSWORD=${WAZUH_INDEXER_PASSWORD}
       # Authentication
       - SOC_ADMIN_PASSWORD=${SOC_ADMIN_PASSWORD:-SocAdmin@2024!}
       - SOC_ANALYST_PASSWORD=${SOC_ANALYST_PASSWORD:-SocAnalyst@2024!}
