@@ -82,6 +82,7 @@ services:
       - NODE_ENV=production
       - NODE_TLS_REJECT_UNAUTHORIZED=0
       - PORT=8080
+      - HOSTNAME=0.0.0.0
       # Wazuh API Connection (localhost since host network)
       - WAZUH_MANAGER_URL=https://127.0.0.1:55000
       - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
