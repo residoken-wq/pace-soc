@@ -160,4 +160,36 @@ systemctl restart wazuh-agent
 
 ---
 
+# Admin user for the web user interface and Wazuh indexer. Use this u>
+  indexer_username: 'admin'
+  indexer_password: 'lAEg3oxh+zhrp4fM60KRQKd2euZCl7cd'
+
+# Wazuh dashboard user for establishing the connection with Wazuh ind>
+  indexer_username: 'kibanaserver'
+  indexer_password: '4V4EEn4SWEZy7iHPF75*Qnh+7DfABHzO'
+
+# Regular Dashboard user, only has read permissions to all indices an>
+  indexer_username: 'kibanaro'
+  indexer_password: '835A0wi*fMP5+jwCNq5c8Aqsk3daW7s4'
+
+# Filebeat user for CRUD operations on Wazuh indices
+  indexer_username: 'logstash'
+  indexer_password: 'DQXNbft+w18q.KMUdQBre28cGGbWXq7.'
+
+# User with READ access to all indices
+  indexer_username: 'readall'
+  indexer_password: 'w?POhksln?.fRP9*e7hP?.dwfWnIFYZd'
+
+# User with permissions to perform snapshot and restore operations
+  indexer_username: 'snapshotrestore'
+  indexer_password: 'GLSMRdx?j8MT+CN.UIb.vY+?Ac6nzCFW'
+
+# Password for wazuh API user
+  api_username: 'wazuh'
+  api_password: 'qGW2gSxPG2nB2AVh3.AAG.9FuUvAxJsl'
+
+# Password for wazuh-wui API user
+  api_username: 'wazuh-wui'
+  api_password: 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1'
+
 *Last updated: 2026-01-06*

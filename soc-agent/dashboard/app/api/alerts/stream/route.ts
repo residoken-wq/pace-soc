@@ -151,6 +151,18 @@ export async function GET(request: NextRequest) {
             // Send initial connection message
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'connected', message: 'Alert stream connected' })}\n\n`));
 
+            // Send initial batch of alerts immediately
+            try {
+                const initialAlerts = await fetchLatestAlerts();
+                if (initialAlerts.length > 0) {
+                    lastTimestamp = initialAlerts[0].timestamp;
+                    // Send as batch for initial display
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'initial', alerts: initialAlerts })}\n\n`));
+                }
+            } catch (e) {
+                console.error('Initial fetch error:', e);
+            }
+
             // Polling loop
             const poll = async () => {
                 while (isActive) {

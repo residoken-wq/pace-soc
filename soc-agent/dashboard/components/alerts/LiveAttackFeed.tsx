@@ -37,10 +37,14 @@ export function LiveAttackFeed({ className, maxItems = 20, showToasts = true }: 
                         setIsConnected(true);
                     } else if (data.type === 'heartbeat') {
                         setLastHeartbeat(data.time);
+                    } else if (data.type === 'initial') {
+                        // Handle initial batch of alerts
+                        const initialAlerts: SecurityAlert[] = data.alerts || [];
+                        setAlerts(initialAlerts.slice(0, maxItems));
                     } else if (data.type === 'alert') {
                         const alert: SecurityAlert = data.alert;
 
-                        // Add to feed
+                        // Add to feed (newest first)
                         setAlerts(prev => {
                             const exists = prev.some(a => a.id === alert.id);
                             if (exists) return prev;
