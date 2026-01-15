@@ -81,7 +81,7 @@ async function fetchLatestAlerts(since?: string): Promise<SecurityAlert[]> {
             query: {
                 bool: {
                     must: [
-                        { range: { 'rule.level': { gte: 7 } } } // Only warnings and above
+                        { range: { 'rule.level': { gte: 3 } } } // Include SSH alerts (level 5)
                     ]
                 }
             }

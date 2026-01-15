@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import { wazuhFetch } from '../../../lib/wazuh';
+
+// Wazuh Indexer config
+const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://192.168.1.206:9200';
+const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
+const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_API_PASSWORD || 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1';
+
+// Disable SSL verification for self-signed certs
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 interface LogEntry {
     id: string;
@@ -13,17 +20,8 @@ interface LogEntry {
     ruleLevel?: number;
 }
 
-// Map log level string to our enum
-function getLogLevel(level: string): 'error' | 'warn' | 'info' | 'debug' {
-    const upper = level?.toUpperCase() || '';
-    if (upper === 'CRITICAL' || upper === 'ERROR') return 'error';
-    if (upper === 'WARNING') return 'warn';
-    if (upper === 'INFO') return 'info';
-    return 'debug';
-}
-
 // Map numeric rule level to log level
-function getRuleLevelToLogLevel(ruleLevel: number): 'error' | 'warn' | 'info' | 'debug' {
+function getLogLevel(ruleLevel: number): 'error' | 'warn' | 'info' | 'debug' {
     if (ruleLevel >= 12) return 'error';
     if (ruleLevel >= 7) return 'warn';
     if (ruleLevel >= 4) return 'info';
@@ -40,125 +38,104 @@ export async function GET(request: Request) {
 
         let logs: LogEntry[] = [];
 
-        // 1. Get Manager Logs (main source)
-        try {
-            const logsData = await wazuhFetch('/manager/logs?limit=500&sort=-timestamp');
+        // Build Elasticsearch query
+        const mustClauses: any[] = [];
 
-            if (logsData.data?.affected_items) {
-                logs = logsData.data.affected_items.map((log: any, index: number) => ({
-                    id: `mlog-${index}`,
-                    timestamp: log.timestamp,
-                    level: getLogLevel(log.level),
-                    source: log.tag || 'wazuh-manager',
-                    agent: 'wazuh-manager',
-                    ip: '127.0.0.1',
-                    message: log.description || log.tag || 'No description',
-                    ruleLevel: log.level === 'CRITICAL' ? 15 : log.level === 'ERROR' ? 12 : log.level === 'WARNING' ? 7 : 3
-                }));
-            }
-        } catch (e) {
-            console.log('Manager logs not available');
-        }
-
-        // 2. Get Agent Logs from active agents
-        try {
-            const agentsData = await wazuhFetch('/agents?status=active&limit=20');
-            const activeAgents = agentsData.data?.affected_items || [];
-
-            for (const agent of activeAgents) {
-                if (agent.id === '000') continue; // Skip manager
-
-                // Try syscheck for file changes
-                try {
-                    const syscheckData = await wazuhFetch(`/syscheck/${agent.id}?limit=20&sort=-date`);
-                    if (syscheckData.data?.affected_items) {
-                        const syscheckLogs = syscheckData.data.affected_items.map((item: any, idx: number) => ({
-                            id: `syscheck-${agent.id}-${idx}`,
-                            timestamp: item.date || new Date().toISOString(),
-                            level: item.event === 'deleted' ? 'error' : item.event === 'modified' ? 'warn' : 'info',
-                            source: 'syscheck',
-                            agent: agent.name,
-                            ip: agent.ip || '-',
-                            message: `[syscheck] File ${item.event}: ${item.file}`,
-                            ruleLevel: item.event === 'deleted' ? 12 : 7
-                        }));
-                        logs = [...logs, ...syscheckLogs];
-                    }
-                } catch (e) { /* continue */ }
-
-                // 3. Check node-exporter status for each agent
-                if (agent.ip && agent.ip !== '127.0.0.1') {
-                    try {
-                        const controller = new AbortController();
-                        const timeout = setTimeout(() => controller.abort(), 2000);
-
-                        const metricsRes = await fetch(`http://${agent.ip}:9100/metrics`, {
-                            signal: controller.signal
-                        }).catch(() => null);
-
-                        clearTimeout(timeout);
-
-                        logs.push({
-                            id: `node-exporter-${agent.id}`,
-                            timestamp: new Date().toISOString(),
-                            level: metricsRes?.ok ? 'info' : 'warn',
-                            source: 'node-exporter',
-                            agent: agent.name,
-                            ip: agent.ip,
-                            message: metricsRes?.ok
-                                ? `[node-exporter] Service running on ${agent.name}`
-                                : `[node-exporter] Service unreachable on ${agent.name}:9100`,
-                            ruleLevel: metricsRes?.ok ? 3 : 7
-                        });
-                    } catch (e) {
-                        logs.push({
-                            id: `node-exporter-${agent.id}`,
-                            timestamp: new Date().toISOString(),
-                            level: 'error',
-                            source: 'node-exporter',
-                            agent: agent.name,
-                            ip: agent.ip || '-',
-                            message: `[node-exporter] Connection failed to ${agent.name}`,
-                            ruleLevel: 12
-                        });
-                    }
-                }
-            }
-        } catch (e) {
-            console.log('Agents data not available');
-        }
-
-        // Apply filters
-        let filtered = logs;
-
-        // Level filter
+        // Level filter - map to rule.level ranges
         if (levelFilter && levelFilter !== 'all') {
-            filtered = filtered.filter(log => log.level === levelFilter);
+            switch (levelFilter) {
+                case 'error':
+                    mustClauses.push({ range: { 'rule.level': { gte: 12 } } });
+                    break;
+                case 'warn':
+                    mustClauses.push({ range: { 'rule.level': { gte: 7, lt: 12 } } });
+                    break;
+                case 'info':
+                    mustClauses.push({ range: { 'rule.level': { gte: 3, lt: 7 } } });
+                    break;
+                case 'debug':
+                    mustClauses.push({ range: { 'rule.level': { lt: 3 } } });
+                    break;
+            }
         }
 
         // Source filter
         if (sourceFilter && sourceFilter !== 'all') {
-            filtered = filtered.filter(log => log.source.toLowerCase().includes(sourceFilter.toLowerCase()));
+            mustClauses.push({
+                bool: {
+                    should: [
+                        { match: { 'rule.groups': sourceFilter } },
+                        { match: { 'decoder.name': sourceFilter } },
+                        { match: { 'predecoder.program_name': sourceFilter } }
+                    ]
+                }
+            });
         }
 
         // Search filter
         if (search) {
-            const searchLower = search.toLowerCase();
-            filtered = filtered.filter(log =>
-                log.message.toLowerCase().includes(searchLower) ||
-                log.agent.toLowerCase().includes(searchLower) ||
-                log.source.toLowerCase().includes(searchLower)
-            );
+            mustClauses.push({
+                multi_match: {
+                    query: search,
+                    fields: ['rule.description', 'full_log', 'agent.name', 'data.*', 'location']
+                }
+            });
         }
 
-        // Sort by timestamp desc
-        filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        const query = {
+            size: limit,
+            sort: [{ '@timestamp': 'desc' }],
+            query: mustClauses.length > 0
+                ? { bool: { must: mustClauses } }
+                : { match_all: {} }
+        };
+
+        // Fetch from Wazuh Indexer
+        const response = await fetch(`${WAZUH_INDEXER_URL}/wazuh-alerts-*/_search`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64')
+            },
+            body: JSON.stringify(query)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Indexer error:', response.status, errorText);
+            throw new Error(`Indexer returned ${response.status}`);
+        }
+
+        const data = await response.json();
+        const hits = data.hits?.hits || [];
+
+        // Map to LogEntry format
+        logs = hits.map((hit: any) => {
+            const src = hit._source;
+            const ruleLevel = src.rule?.level || 0;
+
+            return {
+                id: hit._id,
+                timestamp: src['@timestamp'] || src.timestamp,
+                level: getLogLevel(ruleLevel),
+                source: src.rule?.groups?.[0] || src.decoder?.name || src.predecoder?.program_name || 'wazuh',
+                agent: src.agent?.name || 'unknown',
+                ip: src.agent?.ip || src.data?.srcip || '-',
+                message: src.rule?.description || src.full_log || 'No description',
+                ruleId: src.rule?.id,
+                ruleLevel: ruleLevel
+            };
+        });
+
+        // Get unique sources for filter dropdown
+        const sources = [...new Set(logs.map(l => l.source))];
 
         return NextResponse.json({
             success: true,
-            total: filtered.length,
-            source: 'wazuh-manager',
-            logs: filtered.slice(0, limit)
+            total: data.hits?.total?.value || logs.length,
+            source: 'wazuh-indexer',
+            sources,
+            logs
         });
 
     } catch (error: any) {
@@ -170,7 +147,7 @@ export async function GET(request: Request) {
             source: 'error',
             total: 0,
             logs: [],
-            message: 'Cannot connect to Wazuh Manager. Please check connection settings.'
+            message: 'Cannot connect to Wazuh Indexer. Please check connection settings.'
         });
     }
 }
