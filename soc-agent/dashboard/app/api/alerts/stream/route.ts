@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { findSOCRuleByWazuhId } from '@/lib/rules';
 
 const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://127.0.0.1:9200';
 const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
@@ -21,12 +22,25 @@ interface SecurityAlert {
         name: string;
         ip: string;
     };
+    srcIp: string;  // Source/Attacker IP
+    socRule?: {
+        id: string;
+        name: string;
+        category: string;
+    };
     attackType: string;
     severity: 'critical' | 'high' | 'medium' | 'low';
 }
 
-// Map rule IDs to attack types
+// Map rule IDs to attack types - now using SOC rule mappings
 function getAttackType(ruleId: string, ruleLevel: number, description: string): string {
+    // First: Try to find matching SOC rule by Wazuh rule ID
+    const socRule = findSOCRuleByWazuhId(ruleId);
+    if (socRule) {
+        return socRule.name;  // Use SOC rule name as attack type
+    }
+
+    // Fallback: Heuristic detection based on rule ID patterns and description
     const desc = description.toLowerCase();
 
     // Brute-force detection
@@ -117,6 +131,9 @@ async function fetchLatestAlerts(since?: string): Promise<SecurityAlert[]> {
             const ruleDesc = src.rule?.description || '';
             const ruleId = src.rule?.id || '';
 
+            // Find matching SOC rule for this Wazuh alert
+            const socRule = findSOCRuleByWazuhId(ruleId);
+
             return {
                 id: hit._id,
                 timestamp: src['@timestamp'],
@@ -131,6 +148,12 @@ async function fetchLatestAlerts(since?: string): Promise<SecurityAlert[]> {
                     name: src.agent?.name || 'unknown',
                     ip: src.agent?.ip || '-'
                 },
+                srcIp: src.data?.srcip || src.data?.src_ip || '-',
+                socRule: socRule ? {
+                    id: socRule.id,
+                    name: socRule.name,
+                    category: socRule.category
+                } : undefined,
                 attackType: getAttackType(ruleId, ruleLevel, ruleDesc),
                 severity: getSeverity(ruleLevel)
             };

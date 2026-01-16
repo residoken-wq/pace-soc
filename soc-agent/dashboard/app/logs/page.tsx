@@ -11,7 +11,8 @@ interface LogEntry {
     source: string;
     message: string;
     agent?: string;
-    ip?: string;
+    agentIp?: string;
+    srcIp?: string;  // Source/Attacker IP
 }
 
 export default function LogsPage() {
@@ -62,7 +63,7 @@ export default function LogsPage() {
     const exportLogs = () => {
         const csv = [
             'Timestamp,Level,Source,Agent,IP,Message',
-            ...filteredLogs.map(l => `"${l.timestamp}","${l.level}","${l.source}","${l.agent || ''}","${l.ip || ''}","${l.message.replace(/"/g, '""')}"`)
+            ...filteredLogs.map(l => `"${l.timestamp}","${l.level}","${l.source}","${l.agent || ''}","${l.srcIp || ''}","${l.message.replace(/"/g, '""')}"`)
         ].join('\n');
 
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -260,9 +261,9 @@ export default function LogsPage() {
                                 <tr>
                                     <th className="px-4 py-3 w-40 font-medium">Timestamp</th>
                                     <th className="px-4 py-3 w-24 font-medium">Level</th>
-                                    <th className="px-4 py-3 w-32 font-medium">Source</th>
-                                    <th className="px-4 py-3 w-32 font-medium">Agent</th>
-                                    <th className="px-4 py-3 w-32 font-medium">IP Address</th>
+                                    <th className="px-4 py-3 w-28 font-medium">Source</th>
+                                    <th className="px-4 py-3 w-28 font-medium">Agent</th>
+                                    <th className="px-4 py-3 w-28 font-medium">Source IP</th>
                                     <th className="px-4 py-3 font-medium">Message</th>
                                 </tr>
                             </thead>
@@ -285,9 +286,13 @@ export default function LogsPage() {
                                                     {log.level.toUpperCase()}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3 text-slate-300 font-medium">{log.source}</td>
+                                            <td className="px-4 py-3 text-slate-300 font-medium text-xs">{log.source}</td>
                                             <td className="px-4 py-3 text-slate-400 font-mono text-xs">{log.agent || '-'}</td>
-                                            <td className="px-4 py-3 text-slate-400 font-mono text-xs">{log.ip || '-'}</td>
+                                            <td className="px-4 py-3 font-mono text-xs">
+                                                <span className={log.srcIp && log.srcIp !== '-' ? 'text-amber-400' : 'text-slate-500'}>
+                                                    {log.srcIp || '-'}
+                                                </span>
+                                            </td>
                                             <td className="px-4 py-3 text-slate-300 font-mono text-xs truncate max-w-xl" title={log.message}>
                                                 {log.message}
                                             </td>

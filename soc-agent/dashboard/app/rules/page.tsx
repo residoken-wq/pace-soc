@@ -12,6 +12,7 @@ interface Rule {
     severity: string;
     description: string;
     mitre?: { tactic: string; technique: string; techniqueId: string };
+    wazuhRuleIds?: string[];  // Linked Wazuh Manager rule IDs
     enabled: boolean;
     conditions: string;
     action: string;
@@ -198,6 +199,7 @@ export default function RulesPage() {
                                 <th className="px-6 py-4 font-medium">Category</th>
                                 <th className="px-6 py-4 font-medium">Severity</th>
                                 <th className="px-6 py-4 font-medium">MITRE ATT&CK</th>
+                                <th className="px-6 py-4 font-medium">Wazuh Rules</th>
                                 <th className="px-6 py-4 font-medium">Action</th>
                                 <th className="px-6 py-4 font-medium">Actions</th>
                             </tr>
@@ -239,6 +241,18 @@ export default function RulesPage() {
                                             >
                                                 {rule.mitre.techniqueId} <ExternalLink className="w-3 h-3" />
                                             </a>
+                                        ) : (
+                                            <span className="text-slate-500 text-xs">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {rule.wazuhRuleIds && rule.wazuhRuleIds.length > 0 ? (
+                                            <span
+                                                className="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded text-xs font-mono cursor-help"
+                                                title={rule.wazuhRuleIds.join(', ')}
+                                            >
+                                                {rule.wazuhRuleIds.length} rules
+                                            </span>
                                         ) : (
                                             <span className="text-slate-500 text-xs">-</span>
                                         )}

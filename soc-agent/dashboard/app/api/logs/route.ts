@@ -14,7 +14,8 @@ interface LogEntry {
     level: 'error' | 'warn' | 'info' | 'debug';
     source: string;
     agent: string;
-    ip: string;
+    agentIp: string;
+    srcIp: string;  // Source/Attacker IP
     message: string;
     ruleId?: string;
     ruleLevel?: number;
@@ -123,13 +124,17 @@ export async function GET(request: Request) {
             const src = hit._source;
             const ruleLevel = src.rule?.level || 0;
 
+            // Extract source IP (attacker IP) from various Wazuh fields
+            const srcIp = src.data?.srcip || src.data?.src_ip || src.data?.srcuser || '-';
+
             return {
                 id: hit._id,
                 timestamp: src['@timestamp'] || src.timestamp,
                 level: getLogLevel(ruleLevel),
                 source: src.rule?.groups?.[0] || src.decoder?.name || src.predecoder?.program_name || 'wazuh',
                 agent: src.agent?.name || 'unknown',
-                ip: src.agent?.ip || src.data?.srcip || '-',
+                agentIp: src.agent?.ip || '-',
+                srcIp: srcIp,
                 message: src.rule?.description || src.full_log || 'No description',
                 ruleId: src.rule?.id,
                 ruleLevel: ruleLevel

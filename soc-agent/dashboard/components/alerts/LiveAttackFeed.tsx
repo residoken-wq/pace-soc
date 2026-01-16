@@ -173,6 +173,9 @@ export function LiveAttackFeed({ className, maxItems = 20, showToasts = true }: 
                                                 <p className="text-xs text-slate-400 line-clamp-1">{alert.rule.description}</p>
                                                 <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                                                     <span>{alert.agent.name}</span>
+                                                    {alert.srcIp && alert.srcIp !== '-' && (
+                                                        <span className="text-amber-400 font-mono">⚡ {alert.srcIp}</span>
+                                                    )}
                                                     <span className="flex items-center gap-1">
                                                         <Clock className="w-3 h-3" />
                                                         {new Date(alert.timestamp).toLocaleTimeString()}

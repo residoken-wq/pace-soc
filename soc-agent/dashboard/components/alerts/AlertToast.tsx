@@ -18,6 +18,7 @@ export interface SecurityAlert {
         name: string;
         ip: string;
     };
+    srcIp?: string;  // Source/Attacker IP
     attackType: string;
     severity: 'critical' | 'high' | 'medium' | 'low';
 }
@@ -116,7 +117,9 @@ export function AlertToast({ alert, onDismiss, autoHide = 10000 }: AlertToastPro
 
                 <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
                     <span>Agent: {alert.agent.name}</span>
-                    <span>IP: {alert.agent.ip}</span>
+                    {alert.srcIp && alert.srcIp !== '-' && (
+                        <span className="text-amber-400 font-mono">⚡ {alert.srcIp}</span>
+                    )}
                     {alert.rule.mitre?.[0] && (
                         <span className="px-1.5 py-0.5 bg-purple-500/30 text-purple-300 rounded">
                             {alert.rule.mitre[0].id}
