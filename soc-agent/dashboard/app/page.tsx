@@ -20,8 +20,14 @@ interface Agent {
 interface Alert {
   id: string;
   timestamp: string;
-  rule: { id: string; level: number; description: string };
-  agent: { name: string };
+  level: string; // 'error', 'warn', 'info', 'debug'
+  message: string;
+  agent: string;
+  agentIp: string;
+  srcIp: string;
+  user: string;
+  ruleId: string;
+  ruleLevel: number;
 }
 
 interface DashboardStats {
@@ -51,7 +57,7 @@ export default function Dashboard() {
     try {
       const [agentsRes, alertsRes, metricsRes] = await Promise.all([
         fetch('/api/wazuh/agents'),
-        fetch('/api/wazuh/alerts?limit=50'),
+        fetch('/api/logs?limit=50'),
         fetch('/api/wazuh/syscollector')
       ]);
       const agentsData = await agentsRes.json();
@@ -59,7 +65,7 @@ export default function Dashboard() {
       const metricsData = await metricsRes.json();
 
       const agentsList = agentsData.agents || [];
-      const alertsList = alertsData.alerts || [];
+      const alertsList = alertsData.logs || []; // Note: api/logs returns 'logs' array, not 'alerts'
 
       setAgents(agentsList);
       setAlerts(alertsList);
@@ -76,9 +82,9 @@ export default function Dashboard() {
       // Calculate stats
       const active = agentsList.filter((a: Agent) => a.status === 'active').length;
       const disconnected = agentsList.filter((a: Agent) => a.status === 'disconnected' || a.status === 'never_connected').length;
-      const critical = alertsList.filter((a: Alert) => a.rule.level >= 12).length;
-      const warning = alertsList.filter((a: Alert) => a.rule.level >= 7 && a.rule.level < 12).length;
-      const info = alertsList.filter((a: Alert) => a.rule.level < 7).length;
+      const critical = alertsList.filter((a: Alert) => a.ruleLevel >= 12).length;
+      const warning = alertsList.filter((a: Alert) => a.ruleLevel >= 7 && a.ruleLevel < 12).length;
+      const info = alertsList.filter((a: Alert) => a.ruleLevel < 7).length;
 
       setStats({
         totalAgents: agentsList.length,
@@ -269,18 +275,31 @@ export default function Dashboard() {
               </div>
               <span className="text-xs text-slate-500">Live Stream</span>
             </div>
-            <div className="p-6 font-mono text-sm text-slate-400 space-y-2 h-48 overflow-y-auto custom-scrollbar">
-              {alerts.slice(0, 5).map(alert => (
-                <LogLine
-                  key={alert.id}
-                  time={getTimeAgo(alert.timestamp)}
-                  level={alert.rule.level >= 12 ? 'CRITICAL' : alert.rule.level >= 7 ? 'WARNING' : 'INFO'}
-                  message={alert.rule.description || `Rule ${alert.rule.id}`}
-                />
-              ))}
-              {alerts.length === 0 && (
-                <div className="text-slate-500 text-center py-4">No recent alerts</div>
-              )}
+            <div className="flex flex-col h-96 overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b border-slate-800 bg-slate-900/50 text-xs font-semibold text-slate-500 uppercase tracking-wider sticky top-0 backdrop-blur-md z-10">
+                <div className="col-span-2">Time</div>
+                <div className="col-span-1">Level</div>
+                <div className="col-span-2">Agent</div>
+                <div className="col-span-2">Source IP</div>
+                <div className="col-span-2">User</div>
+                <div className="col-span-3">Message</div>
+              </div>
+              <div className="divide-y divide-slate-800/30">
+                {alerts.slice(0, 50).map(alert => (
+                  <LogLine
+                    key={alert.id}
+                    time={getTimeAgo(alert.timestamp)}
+                    level={alert.level.toUpperCase()}
+                    agent={alert.agent}
+                    srcIp={alert.srcIp}
+                    user={alert.user}
+                    message={alert.message}
+                  />
+                ))}
+                {alerts.length === 0 && (
+                  <div className="text-slate-500 text-center py-8">No recent alerts found</div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -410,19 +429,34 @@ function AlertSeverityCard({ level, count, color, percentage }: any) {
 }
 
 // Log Line Component
-function LogLine({ time, level, message }: any) {
+function LogLine({ time, level, agent, srcIp, user, message }: any) {
   const levelColors: any = {
-    CRITICAL: "text-red-400",
-    WARNING: "text-yellow-400",
-    INFO: "text-blue-400",
-    DEBUG: "text-slate-500"
+    ERROR: "text-red-400 bg-red-500/10 border-red-500/20",
+    WARN: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+    INFO: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    DEBUG: "text-slate-400 bg-slate-500/10 border-slate-500/20"
   };
 
+  const badgeColor = levelColors[level] || levelColors.INFO;
+
   return (
-    <div className="flex gap-3">
-      <span className="text-slate-600">[{time}]</span>
-      <span className={levelColors[level]}>{level}</span>
-      <span className="text-slate-300 truncate">{message}</span>
+    <div className="grid grid-cols-12 gap-4 px-6 py-3 hover:bg-slate-800/30 transition-colors text-sm group items-center">
+      <div className="col-span-2 text-slate-500 font-mono text-xs whitespace-nowrap">{time}</div>
+      <div className="col-span-1">
+        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}`}>
+          {level}
+        </span>
+      </div>
+      <div className="col-span-2 text-slate-300 truncate" title={agent}>{agent}</div>
+      <div className="col-span-2 font-mono text-xs text-slate-400 truncate" title={srcIp}>
+        {srcIp !== '-' ? srcIp : <span className="text-slate-600">-</span>}
+      </div>
+      <div className="col-span-2 text-slate-300 truncate font-mono text-xs" title={user}>
+        {user !== '-' ? user : <span className="text-slate-600">-</span>}
+      </div>
+      <div className="col-span-3 text-slate-300 truncate group-hover:whitespace-normal group-hover:break-words" title={message}>
+        {message}
+      </div>
     </div>
   );
 }

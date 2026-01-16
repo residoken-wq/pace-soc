@@ -16,6 +16,7 @@ interface LogEntry {
     agent: string;
     agentIp: string;
     srcIp: string;  // Source/Attacker IP
+    user: string;   // User involved
     message: string;
     ruleId?: string;
     ruleLevel?: number;
@@ -153,7 +154,9 @@ export async function GET(request: Request) {
             const ruleLevel = src.rule?.level || 0;
 
             // Extract source IP (attacker IP) from various Wazuh fields
-            const srcIp = src.data?.srcip || src.data?.src_ip || src.data?.srcuser || '-';
+            const srcIp = src.data?.srcip || src.data?.src_ip || '-';
+            // Extract User
+            const user = src.data?.srcuser || src.data?.user || src.data?.dstuser || '-';
 
             return {
                 id: hit._id,
@@ -163,6 +166,7 @@ export async function GET(request: Request) {
                 agent: src.agent?.name || 'unknown',
                 agentIp: src.agent?.ip || '-',
                 srcIp: srcIp,
+                user: user,
                 message: formatLogMessage(src),
                 ruleId: src.rule?.id,
                 ruleLevel: ruleLevel
