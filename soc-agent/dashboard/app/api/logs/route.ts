@@ -36,11 +36,22 @@ export async function GET(request: Request) {
         const levelFilter = searchParams.get('level');
         const sourceFilter = searchParams.get('source');
         const search = searchParams.get('search');
+        const timeRange = searchParams.get('timeRange') || '24h';  // Default: last 24 hours
 
         let logs: LogEntry[] = [];
 
         // Build Elasticsearch query
         const mustClauses: any[] = [];
+
+        // Time range filter - crucial for getting recent data
+        mustClauses.push({
+            range: {
+                '@timestamp': {
+                    gte: `now-${timeRange}`,
+                    lte: 'now'
+                }
+            }
+        });
 
         // Level filter - map to rule.level ranges
         if (levelFilter && levelFilter !== 'all') {
