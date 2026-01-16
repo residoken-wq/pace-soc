@@ -8,10 +8,10 @@ const DASHBOARD_ROOT = path.resolve(__dirname, '..');
 const SETTINGS_FILE = path.join(DASHBOARD_ROOT, 'data', 'settings.json');
 const ENV_FILE = path.join(DASHBOARD_ROOT, '.env.local');
 
-// Wazuh Indexer Defaults
-let WAZUH_INDEXER_URL = 'https://127.0.0.1:9200';
-let WAZUH_INDEXER_USER = 'admin';
-let WAZUH_INDEXER_PASSWORD = 'admin'; // Default fallback
+// Wazuh Indexer Configuration
+let WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://127.0.0.1:9200';
+let WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
+let WAZUH_INDEXER_PASSWORD = process.env.WAZUH_INDEXER_PASSWORD || process.env.WAZUH_API_PASSWORD || 'admin';
 
 // Try to read .env.local for credentials (simple parsing)
 if (fs.existsSync(ENV_FILE)) {
