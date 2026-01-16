@@ -26,6 +26,15 @@ interface Settings {
         slackEnabled: boolean;
         webhookUrl: string;
     };
+    smtp: {
+        host: string;
+        port: number;
+        secure: boolean;
+        user: string;
+        password: string;
+        from: string;
+        to: string;
+    };
 }
 
 const defaultSettings: Settings = {
@@ -47,6 +56,15 @@ const defaultSettings: Settings = {
         emailEnabled: false,
         slackEnabled: false,
         webhookUrl: ''
+    },
+    smtp: {
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        user: '',
+        password: '',
+        from: 'SOC Alert <soc@example.com>',
+        to: 'admin@example.com'
     }
 };
 

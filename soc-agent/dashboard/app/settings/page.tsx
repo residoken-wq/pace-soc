@@ -26,13 +26,31 @@ interface Settings {
         slackEnabled: boolean;
         webhookUrl: string;
     };
+    smtp?: {
+        host: string;
+        port: number;
+        secure: boolean;
+        user: string;
+        password: string;
+        from: string;
+        to: string;
+    };
 }
 
 const defaultSettings: Settings = {
     alertThresholds: { cpuWarning: 80, diskCritical: 90, memoryWarning: 85 },
     services: { wazuhAgent: true, promtail: true, nodeExporter: true },
     wazuh: { managerUrl: 'https://192.168.1.206:55000', apiUser: 'wazuh-wui', apiPassword: 'wazuh-wui' },
-    notifications: { emailEnabled: false, slackEnabled: false, webhookUrl: '' }
+    notifications: { emailEnabled: false, slackEnabled: false, webhookUrl: '' },
+    smtp: {
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        user: '',
+        password: '',
+        from: 'SOC Alert <soc@example.com>',
+        to: 'admin@example.com'
+    }
 };
 
 export default function SettingsPage() {
@@ -259,6 +277,75 @@ export default function SettingsPage() {
                             checked={settings.notifications.emailEnabled}
                             onChange={() => updateNotifications('emailEnabled', !settings.notifications.emailEnabled)}
                         />
+                        {/* SMTP Configuration - Only show if Email is enabled */}
+                        {settings.notifications.emailEnabled && (
+                            <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <h4 className="text-sm font-medium text-slate-300">SMTP Settings</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1">Host</label>
+                                        <input
+                                            type="text"
+                                            value={settings.smtp?.host || ''}
+                                            onChange={(e) => setSettings({ ...settings, smtp: { ...settings.smtp!, host: e.target.value } })}
+                                            className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-200"
+                                            placeholder="smtp.gmail.com"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1">Port</label>
+                                        <input
+                                            type="number"
+                                            value={settings.smtp?.port || 587}
+                                            onChange={(e) => setSettings({ ...settings, smtp: { ...settings.smtp!, port: parseInt(e.target.value) } })}
+                                            className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-200"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1">User</label>
+                                        <input
+                                            type="text"
+                                            value={settings.smtp?.user || ''}
+                                            onChange={(e) => setSettings({ ...settings, smtp: { ...settings.smtp!, user: e.target.value } })}
+                                            className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-200"
+                                            placeholder="user@example.com"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1">Password</label>
+                                        <input
+                                            type="password"
+                                            value={settings.smtp?.password || ''}
+                                            onChange={(e) => setSettings({ ...settings, smtp: { ...settings.smtp!, password: e.target.value } })}
+                                            className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-200"
+                                            placeholder="••••••••"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1">From Address</label>
+                                        <input
+                                            type="text"
+                                            value={settings.smtp?.from || ''}
+                                            onChange={(e) => setSettings({ ...settings, smtp: { ...settings.smtp!, from: e.target.value } })}
+                                            className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-200"
+                                            placeholder="SOC Alert <soc@example.com>"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs text-slate-400 mb-1">To Address</label>
+                                        <input
+                                            type="text"
+                                            value={settings.smtp?.to || ''}
+                                            onChange={(e) => setSettings({ ...settings, smtp: { ...settings.smtp!, to: e.target.value } })}
+                                            className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-200"
+                                            placeholder="admin@example.com"
+                                        />
+                                    </div>
+                                </div>
+                                <TestEmailButton settings={settings} />
+                            </div>
+                        )}
+
                         <ToggleItem
                             label="Slack Notifications"
                             description="Send alerts to Slack channel"
@@ -494,8 +581,8 @@ function LogCleanupSection() {
                             key={opt.value}
                             onClick={() => setRetentionDays(opt.value)}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${retentionDays === opt.value
-                                    ? 'bg-red-500/20 text-red-400 border border-red-500/50'
-                                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/50'
+                                : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700'
                                 }`}
                         >
                             {opt.label}
@@ -546,6 +633,51 @@ function LogCleanupSection() {
                             <span className="ml-2 text-slate-400">({result.deleted} records deleted)</span>
                         )}
                     </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function TestEmailButton({ settings }: { settings: Settings }) {
+    const [sending, setSending] = useState(false);
+    const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+    const sendTestEmail = async () => {
+        setSending(true);
+        setResult(null);
+        try {
+            const res = await fetch('/api/email/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    settings: settings.smtp,
+                    to: settings.smtp?.to
+                })
+            });
+            const data = await res.json();
+            setResult({ success: data.success, message: data.message || data.error });
+        } catch (e: any) {
+            setResult({ success: false, message: e.message });
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <div className="flex items-center gap-4 pt-4 border-t border-slate-700">
+            <button
+                onClick={sendTestEmail}
+                disabled={sending}
+                className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                Send Test Email
+            </button>
+            {result && (
+                <div className={`flex items-center gap-2 text-sm ${result.success ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {result.success ? <Check className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                    {result.message}
                 </div>
             )}
         </div>
