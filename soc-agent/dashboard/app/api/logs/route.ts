@@ -21,6 +21,23 @@ interface LogEntry {
     ruleLevel?: number;
 }
 
+// Helper to get better message details for generic alerts
+function formatLogMessage(src: any): string {
+    const description = src.rule?.description || 'No description';
+    const fullLog = src.full_log || '';
+
+    // Rootcheck/Syscheck generic messages -> Use full log for detail
+    // Rule 510: Host-based anomaly detection event (rootcheck)
+    // Rule 5710: Attempt to login using a non-existent user
+    if (description.includes('Host-based anomaly detection event') ||
+        description.includes('Integrity checksum changed') ||
+        description.includes('Windows System error event')) {
+        if (fullLog) return fullLog;
+    }
+
+    return description;
+}
+
 // Map numeric rule level to log level
 function getLogLevel(ruleLevel: number): 'error' | 'warn' | 'info' | 'debug' {
     if (ruleLevel >= 12) return 'error';
@@ -146,7 +163,7 @@ export async function GET(request: Request) {
                 agent: src.agent?.name || 'unknown',
                 agentIp: src.agent?.ip || '-',
                 srcIp: srcIp,
-                message: src.rule?.description || src.full_log || 'No description',
+                message: formatLogMessage(src),
                 ruleId: src.rule?.id,
                 ruleLevel: ruleLevel
             };
