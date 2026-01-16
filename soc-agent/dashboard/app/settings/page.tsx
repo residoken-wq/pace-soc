@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
-import { Save, Bell, Server, Cpu, HardDrive, Check, Loader2, Database, Mail, MessageSquare, Wifi, XCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { Save, Bell, Server, Cpu, HardDrive, Check, Loader2, Database, Mail, MessageSquare, Wifi, XCircle, Trash2, AlertTriangle, Key, Sparkles, Brain } from 'lucide-react';
 
 interface Settings {
     alertThresholds: {
@@ -35,6 +35,12 @@ interface Settings {
         from: string;
         to: string;
     };
+    ai?: {
+        enabled: boolean;
+        provider: 'gemini';
+        apiKey: string;
+        model: string;
+    };
 }
 
 const defaultSettings: Settings = {
@@ -50,6 +56,12 @@ const defaultSettings: Settings = {
         password: '',
         from: 'SOC Alert <soc@example.com>',
         to: 'admin@example.com'
+    },
+    ai: {
+        enabled: false,
+        provider: 'gemini',
+        apiKey: '',
+        model: 'gemini-1.5-flash'
     }
 };
 
@@ -365,6 +377,83 @@ export default function SettingsPage() {
                     </div>
                 </section>
 
+
+
+                {/* AI Integration */}
+                <section className="space-y-4">
+                    <h3 className="text-lg font-semibold text-purple-400 flex items-center gap-2">
+                        <Brain className="w-5 h-5" /> AI Integration
+                    </h3>
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden p-6 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 bg-purple-500/10 rounded-lg">
+                                    <Sparkles className="w-5 h-5 text-purple-400" />
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-slate-200">AI Analysis (Gemini)</h3>
+                                    <p className="text-sm text-slate-400">Enable AI-powered insights and threat detection</p>
+                                </div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={settings.ai?.enabled}
+                                    onChange={e => {
+                                        const ai = settings.ai || { provider: 'gemini', apiKey: '', model: 'gemini-1.5-flash', enabled: false };
+                                        setSettings({ ...settings, ai: { ...ai, enabled: e.target.checked } });
+                                    }}
+                                />
+                                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                            </label>
+                        </div>
+
+                        {settings.ai?.enabled && (
+                            <div className="p-4 bg-slate-950 border border-slate-800 rounded-lg space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="grid grid-cols-1 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-1">Provider</label>
+                                        <select
+                                            disabled
+                                            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-400 cursor-not-allowed text-sm"
+                                            value="gemini"
+                                        >
+                                            <option value="gemini">Google Gemini</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-1">API Key</label>
+                                        <div className="relative">
+                                            <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                                            <input
+                                                type="password"
+                                                value={settings.ai?.apiKey || ''}
+                                                onChange={e => setSettings({ ...settings, ai: { ...settings.ai!, apiKey: e.target.value } })}
+                                                placeholder="Enter your Gemini API Key"
+                                                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all font-mono text-sm"
+                                            />
+                                        </div>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            Get your key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-purple-400 hover:underline">Google AI Studio</a>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
+                                        <select
+                                            value={settings.ai?.model || 'gemini-1.5-flash'}
+                                            onChange={e => setSettings({ ...settings, ai: { ...settings.ai!, model: e.target.value } })}
+                                            className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all text-sm"
+                                        >
+                                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended)</option>
+                                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </section>
 
                 {/* Wazuh Agent Installation */}
                 <section className="space-y-4">

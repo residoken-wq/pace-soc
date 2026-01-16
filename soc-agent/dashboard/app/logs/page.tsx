@@ -81,79 +81,44 @@ export default function LogsPage() {
         URL.revokeObjectURL(url);
     };
 
-    const handleAnalyzeAI = () => {
+    const handleAnalyzeAI = async () => {
         setAnalyzing(true);
         setShowAnalysisModal(true);
+        setAnalysisResult(null);
 
-        setTimeout(() => {
-            const errorCount = filteredLogs.filter(l => l.level === 'error').length;
-            const warnCount = filteredLogs.filter(l => l.level === 'warn').length;
+        try {
+            // Send last 50 logs for analysis
+            const logsToAnalyze = filteredLogs.slice(0, 50).map(l => ({
+                timestamp: l.timestamp,
+                level: l.level,
+                source: l.source,
+                message: l.message
+            }));
 
-            // Heuristic Analysis Logic
-            const insights: string[] = [];
-            const recommendations: any[] = [];
-            const processedLogs = filteredLogs.map(l => l.message.toLowerCase());
-
-            // Pattern 1: Database Auth Failures
-            if (processedLogs.some(msg => msg.includes('failed to authenticate') || msg.includes('access denied'))) {
-                insights.push("Detected authentication failures for database or service accounts.");
-                recommendations.push({
-                    title: "Verify Service Credentials",
-                    steps: ["Check .env files for correct passwords", "Verify database user permissions", "Review access logs for potential unauthorized access"]
-                });
-            }
-
-            // Pattern 2: Rate Limiting
-            if (processedLogs.some(msg => msg.includes('rate limit') || msg.includes('throttling'))) {
-                insights.push("Services are hitting rate limits, which may degrade performance.");
-                recommendations.push({
-                    title: "Adjust Rate Limiting Strategies",
-                    steps: ["Increase threshold in configuration", "Implement exponential backoff in clients", "Check for abusive traffic sources"]
-                });
-            }
-
-            // Pattern 3: Deprecated APIs
-            if (processedLogs.some(msg => msg.includes('deprecated'))) {
-                insights.push("Logs contain warnings about deprecated API usage.");
-                recommendations.push({
-                    title: "Plan for API Upgrades",
-                    steps: ["Identify affected services from logs", "Review vendor documentation for upgrade paths", "Schedule maintenance window for updates"]
-                });
-            }
-
-            // Pattern 4: Network Issues
-            if (processedLogs.some(msg => msg.includes('timeout') || msg.includes('connection refused'))) {
-                insights.push("Network connectivity issues detected (timeouts/refusals).");
-                recommendations.push({
-                    title: "Troubleshoot Network Connectivity",
-                    steps: ["Check firewall rules (UFW/IPTables)", "Verify service status with 'systemctl status'", "Ensure DNS resolution is working correctly"]
-                });
-            }
-
-            // Fallback if no specific patterns found but errors exist
-            if (insights.length === 0 && errorCount > 0) {
-                insights.push("Multiple system errors detected without a specific known pattern.");
-                recommendations.push({
-                    title: "General System Health Check",
-                    steps: ["Review system resource usage (top/htop)", "Check disk space (df -h)", "Restart affected services"]
-                });
-            }
-
-            if (insights.length === 0) {
-                insights.push("System appears healthy with no critical anomalies detected.");
-                recommendations.push({
-                    title: "Routine Maintenance",
-                    steps: ["Continue monitoring logs", "Perform regular system updates", "Review backup status"]
-                });
-            }
-
-            setAnalysisResult({
-                summary: `Analyzed ${filteredLogs.length} logs. Found ${errorCount} errors and ${warnCount} warnings.`,
-                insights: insights,
-                recommendations: recommendations
+            const res = await fetch('/api/ai/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ logs: logsToAnalyze })
             });
+
+            const data = await res.json();
+
+            if (data.success) {
+                setAnalysisResult(data.analysis);
+            } else {
+                setAnalysisResult({
+                    error: true,
+                    summary: `Analysis failed: ${data.error}. Please checking your API Key in Settings.`
+                });
+            }
+        } catch (e: any) {
+            setAnalysisResult({
+                error: true,
+                summary: `Analysis error: ${e.message}`
+            });
+        } finally {
             setAnalyzing(false);
-        }, 1500);
+        }
     };
 
     const getLevelIcon = (level: string) => {
@@ -338,49 +303,99 @@ export default function LogsPage() {
                                 </div>
                             ) : analysisResult ? (
                                 <div className="space-y-6 animate-in fade-in zoom-in duration-300">
-                                    <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
-                                        <h4 className="font-semibold text-purple-300 mb-2">Summary</h4>
-                                        <p className="text-slate-300 text-sm leading-relaxed">{analysisResult.summary}</p>
-                                    </div>
+                                    {/* Error State */}
+                                    {analysisResult.error && (
+                                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex gap-3 text-red-300">
+                                            <AlertTriangle className="w-5 h-5 shrink-0" />
+                                            <div>
+                                                <h4 className="font-semibold">Analysis Failed</h4>
+                                                <p className="text-sm opacity-80">{analysisResult.summary}</p>
+                                            </div>
+                                        </div>
+                                    )}
 
-                                    <div>
-                                        <h4 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
-                                            <Info className="w-4 h-4 text-blue-400" /> Key Insights
-                                        </h4>
-                                        <ul className="space-y-2">
-                                            {analysisResult.insights.map((insight: string, idx: number) => (
-                                                <li key={idx} className="flex gap-3 text-sm text-slate-300 bg-slate-800/30 p-3 rounded-lg border border-slate-800">
-                                                    <span className="text-blue-400 font-bold">•</span>
-                                                    {insight}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-
-                                    <div>
-                                        <h4 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
-                                            <CheckCircle className="w-4 h-4 text-emerald-400" /> Actionable Recommendations
-                                        </h4>
-                                        <div className="space-y-4">
-                                            {analysisResult.recommendations.map((rec: any, idx: number) => (
-                                                <div key={idx} className="bg-slate-800/30 p-4 rounded-lg border border-slate-800">
-                                                    <h5 className="text-emerald-300 font-medium mb-2 flex items-center gap-2">
-                                                        <span className="bg-emerald-500/10 p-1 rounded text-xs">{idx + 1}</span>
-                                                        {rec.title}
-                                                    </h5>
-                                                    <div className="space-y-1.5 pl-2">
-                                                        {rec.steps?.map((step: string, sIdx: number) => (
-                                                            <div key={sIdx} className="text-sm text-slate-300 font-mono bg-slate-900/50 p-1.5 rounded border border-slate-800/50">
-                                                                $ {step}
-                                                            </div>
-                                                        )) || (
-                                                                <div className="text-sm text-slate-300">{rec.toString()}</div>
-                                                            )}
+                                    {!analysisResult.error && (
+                                        <>
+                                            {/* Summary & Risk Score */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                <div className="md:col-span-2 p-4 bg-purple-500/10 border border-purple-500/20 rounded-xl">
+                                                    <h4 className="font-semibold text-purple-300 mb-2">Executive Summary</h4>
+                                                    <p className="text-slate-300 text-sm leading-relaxed">{analysisResult.summary}</p>
+                                                </div>
+                                                <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl flex flex-col items-center justify-center text-center">
+                                                    <div className="text-sm text-slate-400 mb-1">Risk Assessment</div>
+                                                    <div className={`text-4xl font-bold ${(analysisResult.riskScore || 0) > 75 ? 'text-red-400' :
+                                                            (analysisResult.riskScore || 0) > 40 ? 'text-yellow-400' : 'text-emerald-400'
+                                                        }`}>
+                                                        {analysisResult.riskScore || 0}/100
+                                                    </div>
+                                                    <div className={`text-xs uppercase font-bold mt-1 px-2 py-0.5 rounded ${analysisResult.riskLevel === 'critical' ? 'bg-red-500/20 text-red-400' :
+                                                            analysisResult.riskLevel === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                                                                analysisResult.riskLevel === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                    'bg-emerald-500/20 text-emerald-400'
+                                                        }`}>
+                                                        {analysisResult.riskLevel || 'LOW'} Level
                                                     </div>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                            </div>
+
+                                            {/* Threats Detected (if any) */}
+                                            {analysisResult.threats && analysisResult.threats.length > 0 && (
+                                                <div>
+                                                    <h4 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
+                                                        <AlertTriangle className="w-4 h-4 text-red-400" /> Detected Threats
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {analysisResult.threats.map((threat: any, idx: number) => (
+                                                            <div key={idx} className="flex items-center justify-between p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
+                                                                    <span className="text-red-300 font-medium">{threat.name}</span>
+                                                                </div>
+                                                                {threat.mitre && (
+                                                                    <span className="text-xs font-mono bg-slate-900 px-2 py-1 rounded text-slate-400 border border-slate-700">
+                                                                        MITRE {threat.mitre}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Insights */}
+                                            <div>
+                                                <h4 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
+                                                    <Info className="w-4 h-4 text-blue-400" /> Key Insights
+                                                </h4>
+                                                <ul className="space-y-2">
+                                                    {analysisResult.insights?.map((insight: string, idx: number) => (
+                                                        <li key={idx} className="flex gap-3 text-sm text-slate-300 bg-slate-800/30 p-3 rounded-lg border border-slate-800">
+                                                            <span className="text-blue-400 font-bold">•</span>
+                                                            {insight}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+
+                                            {/* Recommendations */}
+                                            <div>
+                                                <h4 className="font-semibold text-slate-200 mb-3 flex items-center gap-2">
+                                                    <CheckCircle className="w-4 h-4 text-emerald-400" /> Actionable Recommendations
+                                                </h4>
+                                                <div className="space-y-3">
+                                                    {analysisResult.recommendations?.map((rec: any, idx: number) => (
+                                                        <div key={idx} className="flex items-start gap-3 text-sm text-slate-300 bg-emerald-500/5 p-3 rounded-lg border border-emerald-500/10">
+                                                            <span className="mt-0.5 bg-emerald-500/20 text-emerald-400 w-5 h-5 flex items-center justify-center rounded text-xs font-bold shrink-0">
+                                                                {idx + 1}
+                                                            </span>
+                                                            <span>{rec}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             ) : null}
                         </div>

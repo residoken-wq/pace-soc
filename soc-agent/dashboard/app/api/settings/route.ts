@@ -35,6 +35,12 @@ interface Settings {
         from: string;
         to: string;
     };
+    ai?: {
+        enabled: boolean;
+        provider: 'gemini';
+        apiKey: string;
+        model: string;
+    };
 }
 
 const defaultSettings: Settings = {
@@ -65,6 +71,12 @@ const defaultSettings: Settings = {
         password: '',
         from: 'SOC Alert <soc@example.com>',
         to: 'admin@example.com'
+    },
+    ai: {
+        enabled: false,
+        provider: 'gemini',
+        apiKey: '',
+        model: 'gemini-1.5-flash'
     }
 };
 
