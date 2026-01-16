@@ -23,6 +23,7 @@ interface SecurityAlert {
         ip: string;
     };
     srcIp: string;  // Source/Attacker IP
+    filePath?: string; // Suspicious file path
     socRule?: {
         id: string;
         name: string;
@@ -150,6 +151,7 @@ async function fetchLatestAlerts(since?: string): Promise<SecurityAlert[]> {
                     ip: src.agent?.ip || '-'
                 },
                 srcIp: src.data?.srcip || src.data?.src_ip || '-',
+                filePath: src.data?.file || src.syscheck?.path || src.data?.target?.path,
                 socRule: socRule ? {
                     id: socRule.id,
                     name: socRule.name,

@@ -19,6 +19,7 @@ export interface SecurityAlert {
         ip: string;
     };
     srcIp?: string;  // Source/Attacker IP
+    filePath?: string;  // Suspicious file path (for malware/rootcheck)
     attackType: string;
     severity: 'critical' | 'high' | 'medium' | 'low';
 }
@@ -114,6 +115,13 @@ export function AlertToast({ alert, onDismiss, autoHide = 10000 }: AlertToastPro
                 </div>
 
                 <p className="text-sm text-slate-200 line-clamp-2">{alert.rule.description}</p>
+
+                {/* Show file path for malware/rootcheck alerts */}
+                {alert.filePath && (
+                    <p className="text-xs text-red-300 font-mono mt-1 truncate" title={alert.filePath}>
+                        📁 {alert.filePath}
+                    </p>
+                )}
 
                 <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
                     <span>Agent: {alert.agent.name}</span>
