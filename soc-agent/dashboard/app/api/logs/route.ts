@@ -87,7 +87,16 @@ export async function GET(request: Request) {
             sort: [{ '@timestamp': 'desc' }],
             query: mustClauses.length > 0
                 ? { bool: { must: mustClauses } }
-                : { match_all: {} }
+                : { match_all: {} },
+            // Aggregation to get ALL unique sources across entire index
+            aggs: {
+                all_decoders: {
+                    terms: { field: 'decoder.name', size: 50 }
+                },
+                all_rule_groups: {
+                    terms: { field: 'rule.groups', size: 50 }
+                }
+            }
         };
 
         // Fetch from Wazuh Indexer
@@ -127,8 +136,16 @@ export async function GET(request: Request) {
             };
         });
 
-        // Get unique sources for filter dropdown
-        const sources = [...new Set(logs.map(l => l.source))];
+        // Extract sources from aggregation (covers ALL alerts, not just returned ones)
+        const decoderBuckets = data.aggregations?.all_decoders?.buckets || [];
+        const ruleGroupBuckets = data.aggregations?.all_rule_groups?.buckets || [];
+
+        // Combine and deduplicate sources from both aggregations
+        const allSources = new Set<string>();
+        decoderBuckets.forEach((b: any) => allSources.add(b.key));
+        ruleGroupBuckets.forEach((b: any) => allSources.add(b.key));
+
+        const sources = [...allSources].sort();
 
         return NextResponse.json({
             success: true,
