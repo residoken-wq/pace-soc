@@ -29,3 +29,38 @@ Requirements:
 - OS: Ubuntu 20/22/24, CentOS 7/8/9
 - Root privileges
 - Outbound connectivity to 192.168.1.206 on ports 3100, 1514, 1515.
+
+TROUBLESHOOTING & TESTING
+=========================
+
+1. Check SSH Logging (If Brute Force alerts are missing):
+   Wazuh Agent reads logs from /var/log/auth.log. If rsyslog is missing, this file might be empty.
+   
+   Verify auth.log has data:
+   tail -f /var/log/auth.log
+   
+   If empty/missing, install rsyslog:
+   sudo apt-get update && sudo apt-get install -y rsyslog
+   sudo systemctl enable --now rsyslog
+
+2. Manual Brute Force Test on Client:
+   You can generate a test log entry manually to verify connectivity:
+   
+   logger -t sshd "Failed password for invalid user hacker from 1.2.3.4 port 55555 ssh2"
+   
+   Then check Wazuh Dashboard for "SSHD: Failed login" alert.
+
+3. Restart Agent:
+   If config changes are made:
+   sudo systemctl restart wazuh-agent
+
+4. Run Brute Force Simulation from SOC Manager:
+   If you have access to the SOC Manager server, you can run the simulation script against this agent:
+   
+   cd /opt/soc-agent/soc-agent/tests
+   ./test-bruteforce.sh <AGENT_IP> 10 1
+   
+   Example:
+   ./test-bruteforce.sh 192.168.0.195 10 1
+   
+   (This attempts 10 SSH logins with invalid users, 1 second apart)
