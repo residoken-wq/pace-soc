@@ -157,7 +157,14 @@ export async function GET(request: Request) {
             total: data.hits?.total?.value || logs.length,
             source: 'wazuh-indexer',
             sources,
-            logs
+            logs,
+            fetchedAt: new Date().toISOString()  // Add timestamp for debugging
+        }, {
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
         });
 
     } catch (error: any) {

@@ -31,7 +31,13 @@ export default function LogsPage() {
         // Only show loading on initial load, not refreshes
         if (!isRefresh) setLoading(true);
         try {
-            const res = await fetch('/api/logs');
+            // Add cache-busting timestamp to prevent stale data
+            const res = await fetch(`/api/logs?_t=${Date.now()}`, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
+            });
             const data = await res.json();
             setLogs(data.logs || []);
             setLastUpdated(new Date());
