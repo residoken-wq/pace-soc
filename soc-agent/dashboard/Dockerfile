@@ -27,6 +27,8 @@ COPY --from=0 --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=0 --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=0 --chown=nextjs:nodejs /app/public ./public
 
+RUN mkdir data && chown nextjs:nodejs data
+
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000

@@ -99,10 +99,12 @@ services:
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-https://soc.pace.edu.vn}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - soc-dashboard-data:/app/data
 
 volumes:
   promtail-data:
   wazuh-logs:
+  soc-dashboard-data:
 
 
 networks:

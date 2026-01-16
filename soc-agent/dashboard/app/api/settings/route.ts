@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 // Settings file path - in production, use a database
-const SETTINGS_FILE = path.join(process.cwd(), 'settings.json');
+const SETTINGS_FILE = path.join(process.cwd(), 'data', 'settings.json');
 
 interface Settings {
     alertThresholds: {

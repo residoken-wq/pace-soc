@@ -5,7 +5,7 @@ const nodemailer = require('nodemailer');
 
 // Configuration
 const DASHBOARD_ROOT = path.resolve(__dirname, '..');
-const SETTINGS_FILE = path.join(DASHBOARD_ROOT, 'settings.json');
+const SETTINGS_FILE = path.join(DASHBOARD_ROOT, 'data', 'settings.json');
 const ENV_FILE = path.join(DASHBOARD_ROOT, '.env.local');
 
 // Wazuh Indexer Defaults
@@ -54,7 +54,7 @@ async function main() {
         }
 
         // 2. Query Wazuh Indexer for recent High Severity Alerts
-        const minutes = 5;
+        const minutes = 10;
         const startTime = new Date(Date.now() - minutes * 60 * 1000).toISOString();
 
         const query = {

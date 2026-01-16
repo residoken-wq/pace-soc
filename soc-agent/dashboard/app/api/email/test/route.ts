@@ -3,7 +3,7 @@ import { sendEmail } from '@/lib/email';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const SETTINGS_FILE = path.join(process.cwd(), 'settings.json');
+const SETTINGS_FILE = path.join(process.cwd(), 'data', 'settings.json');
 
 export async function POST(request: Request) {
     try {
