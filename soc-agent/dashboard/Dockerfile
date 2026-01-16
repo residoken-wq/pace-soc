@@ -26,6 +26,7 @@ RUN chown nextjs:nodejs .next
 COPY --from=0 --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=0 --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=0 --chown=nextjs:nodejs /app/public ./public
+COPY --from=0 --chown=nextjs:nodejs /app/scripts ./scripts
 
 RUN mkdir data && chown nextjs:nodejs data
 
