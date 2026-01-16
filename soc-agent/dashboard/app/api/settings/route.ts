@@ -76,7 +76,7 @@ const defaultSettings: Settings = {
         enabled: false,
         provider: 'gemini',
         apiKey: '',
-        model: 'gemini-1.5-flash'
+        model: 'gemini-1.5-flash-latest'
     }
 };
 

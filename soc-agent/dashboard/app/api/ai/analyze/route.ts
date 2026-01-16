@@ -65,7 +65,7 @@ OUTPUT FORMAT (JSON only):
 
         // 3. Call Gemini
         const genAI = new GoogleGenerativeAI(aiConfig.apiKey);
-        const model = genAI.getGenerativeModel({ model: aiConfig.model || 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: aiConfig.model || 'gemini-1.5-flash-latest' });
 
         const result = await model.generateContent({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],

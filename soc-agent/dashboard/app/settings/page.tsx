@@ -61,7 +61,7 @@ const defaultSettings: Settings = {
         enabled: false,
         provider: 'gemini',
         apiKey: '',
-        model: 'gemini-1.5-flash'
+        model: 'gemini-1.5-flash-latest'
     }
 };
 
@@ -441,12 +441,13 @@ export default function SettingsPage() {
                                     <div>
                                         <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
                                         <select
-                                            value={settings.ai?.model || 'gemini-1.5-flash'}
+                                            value={settings.ai?.model || 'gemini-1.5-flash-latest'}
                                             onChange={e => setSettings({ ...settings, ai: { ...settings.ai!, model: e.target.value } })}
                                             className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all text-sm"
                                         >
-                                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended)</option>
-                                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                            <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (Latest)</option>
+                                            <option value="gemini-1.5-flash-001">Gemini 1.5 Flash (Stable)</option>
+                                            <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (Latest)</option>
                                         </select>
                                     </div>
                                 </div>
