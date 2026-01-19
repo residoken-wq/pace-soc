@@ -129,7 +129,7 @@ export default function Dashboard() {
         {/* Header with Refresh */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-100">SOC Dashboard</h1>
+            <h1 className="text-2xl font-bold text-slate-100">SOC MANAGER</h1>
             <p className="text-slate-400 text-sm">Real-time security monitoring</p>
           </div>
           <button
