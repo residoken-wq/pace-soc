@@ -32,7 +32,9 @@ function formatLogMessage(src: any): string {
     // Rule 5710: Attempt to login using a non-existent user
     if (description.includes('Host-based anomaly detection event') ||
         description.includes('Integrity checksum changed') ||
-        description.includes('Windows System error event')) {
+        description.includes('Windows System error event') ||
+        description.includes('Systemd') ||
+        description.includes('service has entered a failed state')) {
         if (fullLog) return fullLog;
     }
 
