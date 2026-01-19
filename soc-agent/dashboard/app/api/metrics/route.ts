@@ -8,7 +8,8 @@ export async function GET(request: Request) {
         const agentIp = searchParams.get('agentIp');
 
         // Determine metrics source URL
-        let metricsUrl = 'http://host.docker.internal:9100/metrics'; // Default: local
+        // Since dashboard uses network_mode: host, use localhost to reach node-exporter
+        let metricsUrl = 'http://127.0.0.1:9100/metrics';
 
         if (agentIp && agentIp !== '127.0.0.1' && agentIp !== 'localhost') {
             // SSRF Protection: Validate IP against allowlist
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
         }
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        const timeout = setTimeout(() => controller.abort(), 3000); // 3s timeout
 
         const response = await fetch(metricsUrl, {
             signal: controller.signal,

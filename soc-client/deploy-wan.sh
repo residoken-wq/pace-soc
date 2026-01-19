@@ -40,7 +40,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+set -- "${POSITIONAL_ARGS[@]-}" # restore positional parameters
 
 AGENT_NAME="${1:-$(hostname)}"
 MANAGER_IP="${2:-$DEFAULT_MANAGER_IP}"
@@ -65,11 +65,24 @@ echo "  Wazuh Version: ${WAZUH_VERSION}"
 echo "  Install Tests: ${INSTALL_TESTS}"
 echo "================================================"
 
+# --- 0. Pre-checks ---
+if [[ $EUID -ne 0 ]]; then
+   err "This script must be run as root. Use sudo."
+   exit 1
+fi
+
+# Ensure /opt/soc-agent exists for Syscheck (FIM)
+mkdir -p /opt/soc-agent
+
 # --- OS Detection ---
 if [ -f /etc/debian_version ]; then
     OS="debian"
+    LOG_SYSLOG="/var/log/syslog"
+    LOG_AUTH="/var/log/auth.log"
 elif [ -f /etc/redhat-release ]; then
     OS="redhat"
+    LOG_SYSLOG="/var/log/messages"
+    LOG_AUTH="/var/log/secure"
 else
     err "Unsupported OS. Use Ubuntu/Debian or CentOS/RHEL."
     exit 1
@@ -119,7 +132,7 @@ cat > /var/ossec/etc/ossec.conf << EOF
       <port>1514</port>
       <protocol>tcp</protocol>
     </server>
-    <config-profile>ubuntu, ubuntu22, ubuntu22.04</config-profile>
+    <config-profile>ubuntu, debian, redhat, centos, linux</config-profile>
     <notify_time>10</notify_time>
     <time-reconnect>60</time-reconnect>
     <auto_restart>yes</auto_restart>
@@ -137,12 +150,12 @@ cat > /var/ossec/etc/ossec.conf << EOF
 
   <localfile>
     <log_format>syslog</log_format>
-    <location>/var/log/syslog</location>
+    <location>${LOG_SYSLOG}</location>
   </localfile>
 
   <localfile>
     <log_format>syslog</log_format>
-    <location>/var/log/auth.log</location>
+    <location>${LOG_AUTH}</location>
   </localfile>
 
   <!-- Monitor SOC Agent Tests if installed -->
@@ -164,16 +177,17 @@ cat > /var/ossec/etc/ossec.conf << EOF
     <directories realtime="yes" check_all="yes">/opt/soc-agent</directories>
   </syscheck>
 
-  <syscollector>
+  <wodle name="syscollector">
     <disabled>no</disabled>
     <interval>1h</interval>
+    <scan_on_start>yes</scan_on_start>
     <hardware>yes</hardware>
     <os>yes</os>
     <network>yes</network>
     <packages>yes</packages>
     <ports>yes</ports>
     <processes>yes</processes>
-  </syscollector>
+  </wodle>
 </ossec_config>
 EOF
 

@@ -344,13 +344,13 @@ export default function SettingsPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs text-slate-400 mb-1">To Address</label>
+                                        <label className="block text-xs text-slate-400 mb-1">To Address (comma separated)</label>
                                         <input
                                             type="text"
                                             value={settings.smtp?.to || ''}
                                             onChange={(e) => setSettings({ ...settings, smtp: { ...settings.smtp!, to: e.target.value } })}
                                             className="w-full px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-200"
-                                            placeholder="admin@example.com"
+                                            placeholder="admin@example.com, team@example.com"
                                         />
                                     </div>
                                 </div>
