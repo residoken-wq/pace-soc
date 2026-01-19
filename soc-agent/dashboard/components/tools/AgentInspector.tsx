@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Search, Server, Activity, AlertTriangle, Power, RefreshCw, Terminal, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Search, Server, Activity, AlertTriangle, Power, RefreshCw, Terminal, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card'; // Assuming Card exists, if not I will use div with classes
 // If Card doesn't exist, I'll stick to standard tailwind classes
@@ -151,8 +151,8 @@ export function AgentInspector() {
                                 key={agent.id}
                                 onClick={() => setSelectedAgent(agent)}
                                 className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedAgent?.id === agent.id
-                                        ? 'bg-indigo-500/20 border-indigo-500/50'
-                                        : 'bg-slate-800/50 border-slate-700 hover:bg-slate-800'
+                                    ? 'bg-indigo-500/20 border-indigo-500/50'
+                                    : 'bg-slate-800/50 border-slate-700 hover:bg-slate-800'
                                     }`}
                             >
                                 <div className="flex items-center justify-between">
@@ -250,8 +250,8 @@ export function AgentInspector() {
                                                     <div className="flex items-start justify-between mb-2">
                                                         <div className="flex items-center gap-2">
                                                             <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${alert.rule.level >= 12 ? 'bg-red-500/20 text-red-400' :
-                                                                    alert.rule.level >= 7 ? 'bg-orange-500/20 text-orange-400' :
-                                                                        'bg-blue-500/20 text-blue-400'
+                                                                alert.rule.level >= 7 ? 'bg-orange-500/20 text-orange-400' :
+                                                                    'bg-blue-500/20 text-blue-400'
                                                                 }`}>
                                                                 L{alert.rule.level}
                                                             </span>

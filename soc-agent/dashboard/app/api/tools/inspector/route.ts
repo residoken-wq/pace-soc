@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { wazuhFetch } from '../../../../../lib/wazuh';
+import { wazuhFetch } from '../../../../lib/wazuh';
 
 export async function POST(request: Request) {
     try {
