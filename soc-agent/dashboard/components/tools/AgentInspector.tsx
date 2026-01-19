@@ -45,7 +45,6 @@ export function AgentInspector() {
     // Search Agents
     useEffect(() => {
         const searchAgents = async () => {
-            if (searchTerm.length < 2) return;
             setLoading(true);
             try {
                 const res = await fetch('/api/tools/inspector', {
@@ -118,6 +117,29 @@ export function AgentInspector() {
         }
     };
 
+    const handleTriggerScan = async () => {
+        if (!selectedAgent) return;
+
+        setActionLoading(true);
+        try {
+            const res = await fetch('/api/tools/inspector', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'trigger_scan', agentId: selectedAgent.id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message || 'Scan triggered successfully');
+            } else {
+                alert('Failed to trigger scan: ' + data.message);
+            }
+        } catch (e) {
+            alert('Error sending command');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     return (
         <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 min-h-[500px] flex flex-col">
             <div className="flex items-center gap-2 mb-6">
@@ -142,7 +164,7 @@ export function AgentInspector() {
                     <div className="flex-1 overflow-y-auto space-y-2">
                         {loading && <div className="text-center text-slate-500 py-4"><RefreshCw className="w-5 h-5 animate-spin mx-auto" /></div>}
 
-                        {!loading && agents.length === 0 && searchTerm.length >= 2 && (
+                        {!loading && agents.length === 0 && (
                             <div className="text-center text-slate-500 py-4">No agents found</div>
                         )}
 
@@ -290,7 +312,8 @@ export function AgentInspector() {
                                                 </Button>
 
                                                 <Button
-                                                    onClick={() => alert('Scan trigger feature coming soon')}
+                                                    onClick={handleTriggerScan}
+                                                    loading={actionLoading}
                                                     className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30"
                                                 >
                                                     <Activity className="w-4 h-4 mr-2" />

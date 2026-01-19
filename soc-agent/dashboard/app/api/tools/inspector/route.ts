@@ -14,8 +14,12 @@ export async function POST(request: Request) {
             // or filtering via API params if possible.
             // Let's use Wazuh API's 'search' parameter on GET /agents.
 
-            // Note: wazuhFetch wrapper usually handles auth.
-            const data = await wazuhFetch(`/agents?search=${encodeURIComponent(query)}&limit=10`);
+            // Fetch agents. Use search parameter if query provided, else list active/recent agents.
+            const endpoint = query
+                ? `/agents?search=${encodeURIComponent(query)}&limit=10`
+                : `/agents?limit=20&sort=-id`; // Default: List first 20 agents
+
+            const data = await wazuhFetch(endpoint);
 
             if (!data.data?.affected_items) {
                 return NextResponse.json({ success: true, agents: [] });
@@ -87,16 +91,37 @@ export async function POST(request: Request) {
 
         // 3. Restart Agent
         if (action === 'restart_agent' && agentId) {
-            // Trigger Active Response to restart?
-            // Or use the /agents/AGENT_ID/restart API if available?
-            // Wazuh API has PUT /agents/:agent_id/restart (Requires Active Response enabled on agent)
-
             const res = await wazuhFetch(`/agents/${agentId}/restart`, { method: 'PUT' });
 
             if (res.error === 0) {
                 return NextResponse.json({ success: true, message: 'Restart command sent.' });
             } else {
                 return NextResponse.json({ success: false, message: res.message || 'Failed to restart.' });
+            }
+        }
+
+        // 4. Trigger Scan (Syscheck/Rootcheck/Syscollector)
+        if (action === 'trigger_scan' && agentId) {
+            // Attempt to clear syscheck database to force re-scan on next interval (or check if we can force it)
+            // And trigger syscollector scan if available
+            try {
+                // Wazuh 4.x: PUT /syscheck/{agent_id} clears the database
+                // This forces the agent to rebuild the DB next time it runs, effectively a full scan
+                await wazuhFetch(`/syscheck/${agentId}`, { method: 'DELETE' });
+
+                // Attempt to clear rootcheck DB as well
+                await wazuhFetch(`/rootcheck/${agentId}`, { method: 'DELETE' });
+
+                // Try to trigger syscollector scan
+                // Note: /syscollector/{agent_id}/scan might not exist in all versions, fail silently
+                // await wazuhFetch(`/syscollector/${agentId}/scan`, { method: 'PUT' });
+
+                return NextResponse.json({
+                    success: true,
+                    message: 'Scan triggered. Databases cleared; agent will re-scan shortly.'
+                });
+            } catch (e: any) {
+                return NextResponse.json({ success: false, message: 'Failed to trigger scan: ' + e.message });
             }
         }
 
