@@ -13,7 +13,7 @@ set -euo pipefail
 
 # --- Configuration ---
 # Defaults
-DEFAULT_MANAGER_IP="192.168.1.206"
+DEFAULT_MANAGER_IP="115.79.5.5"
 DEFAULT_WAZUH_VERSION="4.14.1"
 INSTALL_TESTS=false
 AGENT_NAME=""

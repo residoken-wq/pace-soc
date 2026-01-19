@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Navbar from '../../components/Navbar';
 import SystemDiagnostics from '../../components/SystemDiagnostics';
-import { Wifi, Search, CheckCircle, XCircle, Loader2, Terminal, Download, Plus, Network, Activity } from 'lucide-react';
+import { AgentInspector } from '../../components/tools/AgentInspector';
+import { Wifi, Search, CheckCircle, XCircle, Loader2, Terminal, Download, Network, Activity } from 'lucide-react';
 
 interface ScanResult {
     ip: string;
@@ -103,102 +104,108 @@ echo "Wazuh agent installed. Check status: systemctl status wazuh-agent"`;
                 <div>
                     <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
                         <Network className="w-6 h-6 text-emerald-400" />
-                        Network Tools
+                        Network Tools & Diagnostics
                     </h2>
-                    <p className="text-slate-400">Scan network and install Wazuh agents on discovered hosts</p>
+                    <p className="text-slate-400">Advanced tools for managing and debugging SOC agents.</p>
                 </div>
 
                 {/* System Diagnostics */}
+                {/* <SystemDiagnostics /> */}
+                {/* Skipping basic diagnostics to save space for Inspector, or keeping it if critical. Keeping it. */}
                 <SystemDiagnostics />
 
-                {/* Ping Tool */}
-                <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4">
-                    <h3 className="text-lg font-semibold text-blue-400 flex items-center gap-2">
-                        <Activity className="w-5 h-5" /> Ping Hosts
-                    </h3>
-                    <div className="flex gap-4">
-                        <input
-                            type="text"
-                            value={pingTargets}
-                            onChange={(e) => setPingTargets(e.target.value)}
-                            placeholder="192.168.1.1, 192.168.1.206"
-                            className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
-                        />
-                        <button
-                            onClick={handlePing}
-                            disabled={pinging}
-                            className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50"
-                        >
-                            {pinging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wifi className="w-4 h-4" />}
-                            Ping
-                        </button>
-                    </div>
-                    {pingResults.length > 0 && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                            {pingResults.map((r, i) => (
-                                <div key={i} className={`p-3 rounded-lg border ${r.status === 'online' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        {r.status === 'online' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <XCircle className="w-4 h-4 text-red-400" />}
-                                        <span className="font-mono text-sm">{r.ip}</span>
-                                    </div>
-                                    {r.latency && <span className="text-xs text-slate-400">{r.latency}ms</span>}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </section>
+                {/* NEW: Agent Inspector */}
+                <AgentInspector />
 
-                {/* Network Scan */}
-                <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4">
-                    <h3 className="text-lg font-semibold text-purple-400 flex items-center gap-2">
-                        <Search className="w-5 h-5" /> Network Scan
-                    </h3>
-                    <div className="flex gap-4">
-                        <input
-                            type="text"
-                            value={scanSubnet}
-                            onChange={(e) => setScanSubnet(e.target.value)}
-                            placeholder="192.168.1.0/24"
-                            className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-purple-500"
-                        />
-                        <button
-                            onClick={handleScan}
-                            disabled={scanning}
-                            className="px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50"
-                        >
-                            {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                            Scan
-                        </button>
-                    </div>
-                    {scanning && (
-                        <div className="text-center py-8 text-slate-400">
-                            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                            Scanning network... This may take a moment.
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Ping Tool */}
+                    <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4">
+                        <h3 className="text-lg font-semibold text-blue-400 flex items-center gap-2">
+                            <Activity className="w-5 h-5" /> Ping Hosts
+                        </h3>
+                        <div className="flex gap-4">
+                            <input
+                                type="text"
+                                value={pingTargets}
+                                onChange={(e) => setPingTargets(e.target.value)}
+                                placeholder="192.168.1.1, 192.168.1.206"
+                                className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500"
+                            />
+                            <button
+                                onClick={handlePing}
+                                disabled={pinging}
+                                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50"
+                            >
+                                {pinging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wifi className="w-4 h-4" />}
+                                Ping
+                            </button>
                         </div>
-                    )}
-                    {scanResults.length > 0 && (
-                        <div className="mt-4">
-                            <h4 className="text-sm text-slate-400 mb-3">Found {scanResults.length} online hosts:</h4>
-                            <div className="space-y-2">
-                                {scanResults.map((r, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-                                        <div className="flex items-center gap-3">
-                                            <CheckCircle className="w-4 h-4 text-emerald-400" />
-                                            <span className="font-mono">{r.ip}</span>
-                                            {r.latency && <span className="text-xs text-slate-500">{r.latency}ms</span>}
+                        {pingResults.length > 0 && (
+                            <div className="grid grid-cols-2 gap-3 mt-4">
+                                {pingResults.map((r, i) => (
+                                    <div key={i} className={`p-3 rounded-lg border ${r.status === 'online' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            {r.status === 'online' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <XCircle className="w-4 h-4 text-red-400" />}
+                                            <span className="font-mono text-sm truncate">{r.ip}</span>
                                         </div>
-                                        <button
-                                            onClick={() => downloadScript(r.ip)}
-                                            className="px-3 py-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded flex items-center gap-1"
-                                        >
-                                            <Download className="w-3 h-3" /> Install Script
-                                        </button>
+                                        {r.latency && <span className="text-xs text-slate-400">{r.latency}ms</span>}
                                     </div>
                                 ))}
                             </div>
+                        )}
+                    </section>
+
+                    {/* Network Scan */}
+                    <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4">
+                        <h3 className="text-lg font-semibold text-purple-400 flex items-center gap-2">
+                            <Search className="w-5 h-5" /> Network Scan
+                        </h3>
+                        <div className="flex gap-4">
+                            <input
+                                type="text"
+                                value={scanSubnet}
+                                onChange={(e) => setScanSubnet(e.target.value)}
+                                placeholder="192.168.1.0/24"
+                                className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-purple-500"
+                            />
+                            <button
+                                onClick={handleScan}
+                                disabled={scanning}
+                                className="px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50"
+                            >
+                                {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                                Scan
+                            </button>
                         </div>
-                    )}
-                </section>
+                        {scanning && (
+                            <div className="text-center py-4 text-slate-400">
+                                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                                Scanning network...
+                            </div>
+                        )}
+                        {scanResults.length > 0 && (
+                            <div className="mt-4 max-h-60 overflow-y-auto">
+                                <div className="space-y-2">
+                                    {scanResults.map((r, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                                            <div className="flex items-center gap-3">
+                                                <CheckCircle className="w-4 h-4 text-emerald-400" />
+                                                <span className="font-mono">{r.ip}</span>
+                                                {r.latency && <span className="text-xs text-slate-500">{r.latency}ms</span>}
+                                            </div>
+                                            <button
+                                                onClick={() => downloadScript(r.ip)}
+                                                className="px-2 py-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded flex items-center gap-1"
+                                            >
+                                                <Download className="w-3 h-3" /> Script
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </section>
+                </div>
 
                 {/* Agent Installation Guide */}
                 <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4">
