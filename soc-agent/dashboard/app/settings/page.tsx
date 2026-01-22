@@ -25,6 +25,7 @@ interface Settings {
         emailEnabled: boolean;
         slackEnabled: boolean;
         webhookUrl: string;
+        ipWhitelist: string[];
     };
     smtp?: {
         host: string;
@@ -47,7 +48,7 @@ const defaultSettings: Settings = {
     alertThresholds: { cpuWarning: 80, diskCritical: 90, memoryWarning: 85 },
     services: { wazuhAgent: true, promtail: true, nodeExporter: true },
     wazuh: { managerUrl: 'https://192.168.1.206:55000', apiUser: 'wazuh-wui', apiPassword: 'wazuh-wui' },
-    notifications: { emailEnabled: false, slackEnabled: false, webhookUrl: '' },
+    notifications: { emailEnabled: false, slackEnabled: false, webhookUrl: '', ipWhitelist: [] },
     smtp: {
         host: 'smtp.gmail.com',
         port: 587,
@@ -373,6 +374,42 @@ export default function SettingsPage() {
                                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-orange-500"
                                 placeholder="https://hooks.slack.com/..."
                             />
+                        </div>
+
+                        {/* IP Whitelist Section */}
+                        <div className="pt-4 border-t border-slate-700">
+                            <label className="block text-sm text-slate-300 mb-2">
+                                🛡️ IP Whitelist (không gửi email alert)
+                            </label>
+                            <textarea
+                                value={(settings.notifications.ipWhitelist || []).join(', ')}
+                                onChange={(e) => {
+                                    const ips = e.target.value
+                                        .split(',')
+                                        .map(ip => ip.trim())
+                                        .filter(Boolean);
+                                    setSettings({
+                                        ...settings,
+                                        notifications: { ...settings.notifications, ipWhitelist: ips }
+                                    });
+                                }}
+                                placeholder="192.168.1.100, 10.0.0.50, 172.16.0.*"
+                                rows={3}
+                                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-orange-500 font-mono text-sm"
+                            />
+                            <p className="text-xs text-slate-500 mt-2">
+                                Các IP trong danh sách này sẽ <span className="text-orange-400">không kích hoạt email alert</span> khi thao tác vào agents.
+                                Nhập các IP cách nhau bởi dấu phẩy. Hỗ trợ wildcard (ví dụ: 192.168.1.*)
+                            </p>
+                            {settings.notifications.ipWhitelist && settings.notifications.ipWhitelist.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    {settings.notifications.ipWhitelist.map((ip, idx) => (
+                                        <span key={idx} className="px-2 py-1 bg-orange-500/10 border border-orange-500/30 text-orange-400 rounded text-xs font-mono">
+                                            {ip}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </section>

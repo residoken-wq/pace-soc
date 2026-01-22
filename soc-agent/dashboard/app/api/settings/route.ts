@@ -25,6 +25,7 @@ interface Settings {
         emailEnabled: boolean;
         slackEnabled: boolean;
         webhookUrl: string;
+        ipWhitelist: string[];
     };
     smtp: {
         host: string;
@@ -61,7 +62,8 @@ const defaultSettings: Settings = {
     notifications: {
         emailEnabled: false,
         slackEnabled: false,
-        webhookUrl: ''
+        webhookUrl: '',
+        ipWhitelist: []
     },
     smtp: {
         host: 'smtp.gmail.com',

@@ -114,6 +114,23 @@ export async function POST(request: Request) {
             if (!settings.notifications?.emailEnabled) {
                 return NextResponse.json({ success: true, message: 'Email notifications disabled in settings' });
             }
+
+            // Check if source IP is whitelisted
+            const ipWhitelist: string[] = settings.notifications?.ipWhitelist || [];
+            if (alert.ip && ipWhitelist.length > 0) {
+                const isWhitelisted = ipWhitelist.some((whitelistedIp: string) => {
+                    // Support exact match and CIDR-like prefix match (e.g., "192.168.1." matches "192.168.1.100")
+                    return alert.ip === whitelistedIp || alert.ip.startsWith(whitelistedIp.replace(/\*$/, ''));
+                });
+                if (isWhitelisted) {
+                    console.log(`IP ${alert.ip} is whitelisted, skipping email alert`);
+                    return NextResponse.json({
+                        success: true,
+                        message: `IP ${alert.ip} is whitelisted, skipping email alert`
+                    });
+                }
+            }
+
             smtpSettings = settings.smtp;
 
             // Handle multiple recipients (split by comma if string)
