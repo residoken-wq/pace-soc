@@ -65,7 +65,18 @@ OUTPUT FORMAT (JSON only):
 
         // 3. Call Gemini
         const genAI = new GoogleGenerativeAI(aiConfig.apiKey);
-        const model = genAI.getGenerativeModel({ model: aiConfig.model || 'gemini-1.5-flash-latest' });
+
+        // Normalize model name - fix old settings that may have invalid model names
+        let modelName = aiConfig.model || 'gemini-1.5-flash-latest';
+        // Fix common invalid model names
+        if (modelName === 'gemini-1.5-flash' || modelName === 'gemini-flash') {
+            modelName = 'gemini-1.5-flash-latest';
+        }
+        if (modelName === 'gemini-1.5-pro' || modelName === 'gemini-pro') {
+            modelName = 'gemini-1.5-pro-latest';
+        }
+
+        const model = genAI.getGenerativeModel({ model: modelName });
 
         const result = await model.generateContent({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
