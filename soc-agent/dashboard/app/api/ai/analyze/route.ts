@@ -66,14 +66,20 @@ OUTPUT FORMAT (JSON only):
         // 3. Call Gemini
         const genAI = new GoogleGenerativeAI(aiConfig.apiKey);
 
-        // Normalize model name - fix old settings that may have invalid model names
-        let modelName = aiConfig.model || 'gemini-1.5-flash-latest';
-        // Fix common invalid model names
-        if (modelName === 'gemini-1.5-flash' || modelName === 'gemini-flash') {
-            modelName = 'gemini-1.5-flash-latest';
-        }
-        if (modelName === 'gemini-1.5-pro' || modelName === 'gemini-pro') {
-            modelName = 'gemini-1.5-pro-latest';
+        // Use gemini-2.0-flash as default - Gemini 1.5 models are deprecated
+        // Map old model names to working models
+        let modelName = aiConfig.model || 'gemini-2.0-flash';
+        const modelMapping: Record<string, string> = {
+            'gemini-1.5-flash': 'gemini-2.0-flash',
+            'gemini-1.5-flash-latest': 'gemini-2.0-flash',
+            'gemini-1.5-flash-001': 'gemini-2.0-flash',
+            'gemini-1.5-pro': 'gemini-2.0-flash',
+            'gemini-1.5-pro-latest': 'gemini-2.0-flash',
+            'gemini-flash': 'gemini-2.0-flash',
+            'gemini-pro': 'gemini-2.0-flash',
+        };
+        if (modelMapping[modelName]) {
+            modelName = modelMapping[modelName];
         }
 
         const model = genAI.getGenerativeModel({ model: modelName });
