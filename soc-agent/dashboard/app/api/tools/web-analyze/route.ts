@@ -32,19 +32,35 @@ export async function POST(request: NextRequest) {
         const html = await response.text();
         const duration = Date.now() - start;
 
+        // Basic Info
+        const host = new URL(targetUrl).hostname;
+        const ip = await WebAnalyzers.resolveHost(host);
+
         // Run Analyzers
-        const report = {
+        const report: any = {
             general: {
                 status: response.status,
                 url: response.url,
                 duration: `${duration}ms`,
-                size: html.length
+                size: html.length,
+                ip: ip || 'Unknown'
             },
             headers: WebAnalyzers.analyzeHeaders(headers),
             cookies: WebAnalyzers.analyzeCookies(headers),
             tech: await WebAnalyzers.detectTech(targetUrl, headers, html),
             robots: await WebAnalyzers.analyzeRobots(targetUrl)
         };
+
+        // Deep Scan Modules
+        if (body.scanType === 'deep') {
+            console.log('Running Deep Scan modules...');
+            const [content, ssl] = await Promise.all([
+                WebAnalyzers.analyzeContent(targetUrl),
+                WebAnalyzers.analyzeSSL(targetUrl)
+            ]);
+            report.content = content;
+            report.ssl = ssl;
+        }
 
         return NextResponse.json({ success: true, report });
 

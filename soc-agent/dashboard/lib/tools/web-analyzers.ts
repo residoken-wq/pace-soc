@@ -11,9 +11,94 @@ interface ScanReport {
     cookies: AnalysisResult[];
     tech: AnalysisResult[];
     robots: AnalysisResult | null;
+    content?: AnalysisResult[];
+    ssl?: AnalysisResult;
+    ip?: string;
 }
 
 export const WebAnalyzers = {
+    /**
+     * Resolve Hostname to IP
+     */
+    resolveHost: async (hostname: string): Promise<string | null> => {
+        try {
+            // In Next.js Edge/Serverless, 'dns' might be restricted. 
+            // We'll use a hacky but effective way via simple fetch to a public DNS over HTTPS if local fails,
+            // or just rely on a mocked lookup if we assume local agent context.
+            // For this realistic simulation, we'll try a fast DNS lookup via Google DNS API to avoid Node/OS dependencies issues in some environments.
+            const res = await fetch(`https://dns.google/resolve?name=${hostname}&type=A`);
+            const data = await res.json();
+            if (data.Answer && data.Answer.length > 0) {
+                return data.Answer[0].data;
+            }
+            return null;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    /**
+     * Analyze SSL Certificate
+     */
+    analyzeSSL: async (url: string): Promise<AnalysisResult> => {
+        if (!url.startsWith('https')) {
+            return { status: 'warning', message: 'Not using HTTPS', score: 50 };
+        }
+        try {
+            // A simple fetch confirms connection works, but to get Cert details in pure JS/Fetch environments is hard.
+            // We assume backend Node.js environment where we could use 'https' module, but for portability in this demo
+            // we will infer quality from the connection ability and Headers.
+            const res = await fetch(url, { method: 'HEAD' });
+            if (res.ok) {
+                // Determine if HSTS is strict
+                const hsts = res.headers.get('strict-transport-security');
+                return {
+                    status: 'pass',
+                    message: hsts ? 'Secure Connection (HSTS Enabled)' : 'Secure Connection (HTTPS Valid)',
+                    details: 'Certificate Chain appears valid.'
+                };
+            }
+            return { status: 'fail', message: 'SSL Connection Failed' };
+        } catch (e) {
+            return { status: 'fail', message: 'Invalid SSL Certificate or Connection Error' };
+        }
+    },
+
+    /**
+     * Content Discovery (Directory Fuzzing)
+     */
+    analyzeContent: async (baseUrl: string): Promise<AnalysisResult[]> => {
+        const paths = [
+            '/admin', '/login', '/dashboard',
+            '/.env', '/config.php', '/backup',
+            '/.git/config', '/api', '/swagger.json'
+        ];
+
+        const findings: AnalysisResult[] = [];
+
+        // Run in parallel
+        const promises = paths.map(async (path) => {
+            try {
+                const target = new URL(path, baseUrl).toString();
+                const res = await fetch(target, { method: 'HEAD', redirect: 'manual' });
+                if (res.status === 200 || res.status === 403 || res.status === 401) {
+                    let impact = 'info';
+                    if (path.includes('.env') || path.includes('.git')) impact = 'fail'; // High severity
+
+                    return {
+                        status: impact as any,
+                        message: `Found: ${path} (Status: ${res.status})`,
+                        details: target
+                    };
+                }
+            } catch (e) { /* ignore connection errors */ }
+            return null;
+        });
+
+        const results = await Promise.all(promises);
+        return results.filter(Boolean) as AnalysisResult[];
+    },
+
     /**
      * Analyze HTTP Security Headers
      */

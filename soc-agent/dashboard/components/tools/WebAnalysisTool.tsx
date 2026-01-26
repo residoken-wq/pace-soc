@@ -9,15 +9,19 @@ interface AnalysisReport {
         url: string;
         duration: string;
         size: number;
+        ip?: string;
     };
     headers: Record<string, { status: string; message: string; details?: string; score?: number }>;
     cookies: { status: string; message: string; score?: number }[];
     tech: { status: string; message: string; details?: string }[];
     robots: { status: string; message: string; details?: string[] } | null;
+    content?: { status: string; message: string; details?: string }[];
+    ssl?: { status: string; message: string; details?: string };
 }
 
 export function WebAnalysisTool() {
     const [url, setUrl] = useState('');
+    const [isDeepScan, setIsDeepScan] = useState(false);
     const [loading, setLoading] = useState(false);
     const [report, setReport] = useState<AnalysisReport | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -32,7 +36,7 @@ export function WebAnalysisTool() {
             const res = await fetch('/api/tools/web-analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url })
+                body: JSON.stringify({ url, scanType: isDeepScan ? 'deep' : 'quick' })
             });
             const data = await res.json();
 
@@ -61,23 +65,36 @@ export function WebAnalysisTool() {
             </div>
 
             {/* Input Section */}
-            <div className="flex gap-4 mb-8">
-                <input
-                    type="text"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="Enter URL (e.g. http://192.168.1.100)"
-                    className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
-                    onKeyDown={(e) => e.key === 'Enter' && handleScan()}
-                />
-                <button
-                    onClick={handleScan}
-                    disabled={loading || !url}
-                    className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
-                    Analyze
-                </button>
+            <div className="flex flex-col md:flex-row gap-4 mb-8">
+                <div className="flex-1 flex gap-2">
+                    <input
+                        type="text"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="Enter URL (e.g. http://192.168.1.100)"
+                        className="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                        onKeyDown={(e) => e.key === 'Enter' && handleScan()}
+                    />
+                </div>
+                <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-300 select-none">
+                        <input
+                            type="checkbox"
+                            checked={isDeepScan}
+                            onChange={(e) => setIsDeepScan(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+                        />
+                        <span>Deep Scan (Slow)</span>
+                    </label>
+                    <button
+                        onClick={handleScan}
+                        disabled={loading || !url}
+                        className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                    >
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                        {loading ? 'Scanning...' : 'Analyze'}
+                    </button>
+                </div>
             </div>
 
             {/* Error Message */}
@@ -91,12 +108,44 @@ export function WebAnalysisTool() {
             {report && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {/* General Info */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <ResultMetric label="Status Code" value={report.general.status} icon={<Activity />} color={report.general.status === 200 ? 'text-emerald-400' : 'text-yellow-400'} />
-                        <ResultMetric label="Response Time" value={report.general.duration} icon={<Loader2 />} color="text-blue-400" />
-                        <ResultMetric label="Page Size" value={`${(report.general.size / 1024).toFixed(2)} KB`} icon={<FileText />} color="text-slate-400" />
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <ResultMetric label="Status" value={report.general.status} icon={<Activity />} color={report.general.status === 200 ? 'text-emerald-400' : 'text-yellow-400'} />
+                        <ResultMetric label="Host IP" value={report.general.ip || 'N/A'} icon={<Globe />} color="text-slate-300" />
+                        <ResultMetric label="Response" value={report.general.duration} icon={<Loader2 />} color="text-blue-400" />
+                        <ResultMetric label="Size" value={`${(report.general.size / 1024).toFixed(2)} KB`} icon={<FileText />} color="text-slate-400" />
                         <ResultMetric label="Tech Stack" value={report.tech.length + ' detected'} icon={<Server />} color="text-purple-400" />
                     </div>
+
+                    {/* Deep Scan Results */}
+                    {(report.content || report.ssl) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {report.ssl && (
+                                <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-5">
+                                    <h4 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
+                                        <Lock className="w-5 h-5 text-emerald-400" /> SSL/TLS Protocol
+                                    </h4>
+                                    <ResultItem label="HTTPS Status" status={report.ssl.status} message={report.ssl.message} />
+                                    {report.ssl.details && <p className="text-xs text-slate-400 mt-2 ml-1">{report.ssl.details}</p>}
+                                </div>
+                            )}
+                            {report.content && (
+                                <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-5">
+                                    <h4 className="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
+                                        <Search className="w-5 h-5 text-orange-400" /> Content Discovery
+                                    </h4>
+                                    {report.content.length > 0 ? (
+                                        <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                            {report.content.map((c, i) => (
+                                                <ResultItem key={i} label="Exposed Path" status={c.status} message={c.message} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-slate-500 italic">No sensitive paths found in dictionary scan.</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Security Headers */}
