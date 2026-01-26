@@ -54,13 +54,18 @@ export async function POST(request: NextRequest) {
         // Deep Scan Modules
         if (body.scanType === 'deep') {
             console.log('Running Deep Scan modules...');
-            const [content, ssl] = await Promise.all([
+            const [content, ssl, supplyChain] = await Promise.all([
                 WebAnalyzers.analyzeContent(targetUrl),
-                WebAnalyzers.analyzeSSL(targetUrl)
+                WebAnalyzers.analyzeSSL(targetUrl),
+                WebAnalyzers.analyzeSupplyChain(html)
             ]);
             report.content = content;
             report.ssl = ssl;
+            report.supplyChain = supplyChain;
         }
+
+        // Calculate Final Risk Score
+        report.riskScore = WebAnalyzers.calculateRiskScore(report);
 
         return NextResponse.json({ success: true, report });
 

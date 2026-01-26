@@ -1,9 +1,11 @@
+import * as cheerio from 'cheerio';
 
 interface AnalysisResult {
     status: 'pass' | 'fail' | 'warning' | 'info';
     message: string;
     details?: any;
     score?: number; // 0-100 impact score
+    remediation?: string; // Code snippet or advice
 }
 
 interface ScanReport {
@@ -13,10 +15,114 @@ interface ScanReport {
     robots: AnalysisResult | null;
     content?: AnalysisResult[];
     ssl?: AnalysisResult;
+    supplyChain?: AnalysisResult[];
+    riskScore?: number;
     ip?: string;
 }
 
 export const WebAnalyzers = {
+    /**
+     * Calculate Risk Score (0-100)
+     * Higher score = Safer
+     */
+    calculateRiskScore: (report: ScanReport): number => {
+        let score = 100;
+
+        // Header Deductions
+        Object.values(report.headers).forEach(h => { if (h.score) score -= h.score; });
+
+        // Cookie Deductions
+        report.cookies.forEach(c => { if (c.score) score -= c.score; });
+
+        // SSL Deduction
+        if (report.ssl && report.ssl.score) score -= report.ssl.score;
+
+        // Content Discovery Deductions
+        if (report.content) {
+            report.content.forEach(c => {
+                if (c.status === 'fail') score -= 15;
+                if (c.status === 'warning') score -= 5;
+            });
+        }
+
+        // Supply Chain Deductions
+        if (report.supplyChain) {
+            report.supplyChain.forEach(s => {
+                if (s.status === 'fail') score -= 20;
+                if (s.status === 'warning') score -= 10;
+            });
+        }
+
+        return Math.max(0, score);
+    },
+
+    /**
+     * Supply Chain Intelligence (JS Library Check)
+     */
+    analyzeSupplyChain: async (html: string): Promise<AnalysisResult[]> => {
+        const results: AnalysisResult[] = [];
+        const $ = cheerio.load(html);
+
+        $('script').each((i, el) => {
+            const src = $(el).attr('src');
+            if (!src) return;
+
+            // Simple pattern matching for vulnerable libraries (Simulated DB)
+            if (src.includes('jquery-1.12') || src.includes('jquery/1.1')) {
+                results.push({
+                    status: 'fail',
+                    message: `Vulnerable Library: jQuery 1.x detected (${src})`,
+                    details: 'CVE-2020-11022: Cross-site scripting (XSS)',
+                    remediation: '<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>'
+                });
+            } else if (src.includes('bootstrap/3.3')) {
+                results.push({
+                    status: 'warning',
+                    message: `Outdated Library: Bootstrap 3 (${src})`,
+                    details: 'EOL version. Upgrade to Bootstrap 5 recommended.',
+                    remediation: 'npm install bootstrap@latest'
+                });
+            } else if (src.includes('angular.js') && !src.includes('1.8')) {
+                results.push({
+                    status: 'fail',
+                    message: `Vulnerable Library: AngularJS 1.x (<1.8) detected`,
+                    details: 'Multiple XSS vulnerabilities.',
+                    remediation: 'Migrate to Angular 2+ or update to 1.8.3'
+                });
+            }
+        });
+
+        // If no findings but external scripts exist
+        if (results.length === 0 && $('script[src^="http"]').length > 0) {
+            results.push({ status: 'info', message: 'External scripts found but no known CVEs matched in quick DB.' });
+        }
+
+        return results;
+    },
+
+    /**
+     * Generate Remediation Configs
+     */
+    generateRemediation: (findingType: string): string => {
+        switch (findingType) {
+            case 'HSTS':
+                return `# Nginx
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+# Apache (.htaccess)
+<IfModule mod_headers.c>
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>`;
+            case 'CSP':
+                return `# Nginx
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://trusted.cdn.com; object-src 'none';" always;`;
+            case 'X-Frame':
+                return `# Nginx
+add_header X-Frame-Options "SAMEORIGIN" always;`;
+            default:
+                return 'No automated remediation available.';
+        }
+    },
     /**
      * Resolve Hostname to IP
      */
@@ -110,7 +216,12 @@ export const WebAnalyzers = {
         if (hsts) {
             results['HSTS'] = { status: 'pass', message: 'HSTS is enabled.', details: hsts, score: 0 };
         } else {
-            results['HSTS'] = { status: 'fail', message: 'Strict-Transport-Security header is missing.', score: 20 };
+            results['HSTS'] = {
+                status: 'fail',
+                message: 'Strict-Transport-Security header is missing.',
+                score: 20,
+                remediation: WebAnalyzers.generateRemediation('HSTS')
+            };
         }
 
         // 2. Content-Security-Policy
@@ -118,7 +229,12 @@ export const WebAnalyzers = {
         if (csp) {
             results['CSP'] = { status: 'pass', message: 'CSP is configured.', details: csp, score: 0 };
         } else {
-            results['CSP'] = { status: 'warning', message: 'Content-Security-Policy header is missing.', score: 15 };
+            results['CSP'] = {
+                status: 'warning',
+                message: 'Content-Security-Policy header is missing.',
+                score: 15,
+                remediation: WebAnalyzers.generateRemediation('CSP')
+            };
         }
 
         // 3. X-Frame-Options
@@ -126,7 +242,12 @@ export const WebAnalyzers = {
         if (xfo) {
             results['X-Frame'] = { status: 'pass', message: `X-Frame-Options is set to ${xfo}.`, score: 0 };
         } else {
-            results['X-Frame'] = { status: 'fail', message: 'X-Frame-Options header is missing. Site may be vulnerable to Clickjacking.', score: 10 };
+            results['X-Frame'] = {
+                status: 'fail',
+                message: 'X-Frame-Options header is missing. Site may be vulnerable to Clickjacking.',
+                score: 10,
+                remediation: WebAnalyzers.generateRemediation('X-Frame')
+            };
         }
 
         // 4. Server Leakage

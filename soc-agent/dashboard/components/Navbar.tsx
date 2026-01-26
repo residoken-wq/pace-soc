@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Settings, Bell, Network, FileText, BarChart3, Book, LogOut, User } from 'lucide-react';
+import { Shield, Settings, Bell, Network, FileText, BarChart3, Book, LogOut, User, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -55,6 +55,7 @@ export default function Navbar() {
                         <NavLink href="/" label="Overview" />
                         <NavLink href="/alerts" label="Alerts" icon={<Bell className="w-4 h-4" />} />
                         <NavLink href="/rules" label="Rules" icon={<FileText className="w-4 h-4" />} />
+                        <NavLink href="/threats" label="Threats" icon={<ShieldAlert className="w-4 h-4 text-red-400" />} />
                         <NavLink href="/mitre" label="MITRE" icon={<Shield className="w-4 h-4" />} />
                         <NavLink href="/vulnerabilities" label="Vulns" icon={<Shield className="w-4 h-4" />} />
                         <NavLink href="/logs" label="Logs" icon={<FileText className="w-4 h-4" />} />
