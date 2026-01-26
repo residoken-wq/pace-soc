@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Navbar from '../../components/Navbar';
 import SystemDiagnostics from '../../components/SystemDiagnostics';
 import { AgentInspector } from '../../components/tools/AgentInspector';
+import { WebAnalysisTool } from '../../components/tools/WebAnalysisTool';
 import { Wifi, Search, CheckCircle, XCircle, Loader2, Terminal, Download, Network, Activity } from 'lucide-react';
 
 interface ScanResult {
@@ -116,6 +117,9 @@ echo "Wazuh agent installed. Check status: systemctl status wazuh-agent"`;
 
                 {/* NEW: Agent Inspector */}
                 <AgentInspector />
+
+                {/* NEW: Web Application Analysis */}
+                <WebAnalysisTool />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Ping Tool */}
