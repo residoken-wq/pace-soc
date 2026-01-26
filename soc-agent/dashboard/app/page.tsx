@@ -8,6 +8,7 @@ import AgentsList from '../components/AgentsList';
 import { AlertTrendChart } from '@/components/charts/AlertTrendChart';
 import { MitreHeatmap } from '@/components/charts/MitreHeatmap';
 import { LiveAttackFeed } from '@/components/alerts/LiveAttackFeed';
+import { GeoMap } from '@/components/charts/GeoMap';
 
 interface Agent {
   id: string;
@@ -184,6 +185,8 @@ export default function Dashboard() {
         {/* Live Attack Feed - Real-time security alerts */}
         <LiveAttackFeed showToasts={true} maxItems={15} />
 
+        {/* Global Threat Map */}
+        <GeoMap />
 
         {/* Real-time Charts */}
         <RealTimeCharts
