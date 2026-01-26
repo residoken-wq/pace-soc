@@ -5,6 +5,7 @@ import Navbar from '../../components/Navbar';
 import SystemDiagnostics from '../../components/SystemDiagnostics';
 import { AgentInspector } from '../../components/tools/AgentInspector';
 import { WebAnalysisTool } from '../../components/tools/WebAnalysisTool';
+import { PortScan } from '../../components/tools/PortScan';
 import { Wifi, Search, CheckCircle, XCircle, Loader2, Terminal, Download, Network, Activity } from 'lucide-react';
 
 interface ScanResult {
@@ -122,6 +123,9 @@ echo "Wazuh agent installed. Check status: systemctl status wazuh-agent"`;
                 <WebAnalysisTool />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Port Scanner */}
+                    <PortScan />
+
                     {/* Ping Tool */}
                     <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4">
                         <h3 className="text-lg font-semibold text-blue-400 flex items-center gap-2">
