@@ -59,12 +59,13 @@ export async function GET(request: NextRequest) {
                     ap.kill_chain_phases.forEach((kcp: any) => {
                         if (kcp.kill_chain_name === 'mitre-attack') {
                             const tacticSlug = kcp.phase_name;
-                            const tacticName = tacticMap.get(tacticSlug) || tacticSlug; // Convert slug to display name if possible
+                            const tacticName = tacticMap.get(tacticSlug) || tacticSlug; // Convert slug to display name
 
-                            if (!techniques[tacticSlug]) {
-                                techniques[tacticSlug] = [];
+                            // Use tacticName as key to match frontend lookup
+                            if (!techniques[tacticName]) {
+                                techniques[tacticName] = [];
                             }
-                            techniques[tacticSlug].push({
+                            techniques[tacticName].push({
                                 id: techniqueId,
                                 name: techniqueName
                             });
