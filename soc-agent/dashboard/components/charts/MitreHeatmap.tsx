@@ -71,6 +71,7 @@ export interface MitreHeatmapProps {
     tactics?: string[];
     techniques?: Record<string, { id: string; name: string }[]>;
     onTechniqueClick?: (techniqueId: string) => void;
+    filterEmpty?: boolean;
     className?: string;
 }
 
@@ -79,6 +80,7 @@ export function MitreHeatmap({
     tactics = MITRE_TACTICS,
     techniques = TACTICS_TECHNIQUES,
     onTechniqueClick,
+    filterEmpty = false,
     className
 }: MitreHeatmapProps) {
     const detectionMap = new Map(detections.map(d => [d.techniqueId, d.count]));
@@ -90,6 +92,14 @@ export function MitreHeatmap({
         return 'bg-red-500/40 border-red-500/60';
     };
 
+    // Filter tactics if filterEmpty is true
+    const visibleTactics = tactics.filter(tactic => {
+        if (!filterEmpty) return true;
+        const tacticTechniques = techniques[tactic] || [];
+        // Only show tactic if it has at least one technique with detections
+        return tacticTechniques.some(tech => (detectionMap.get(tech.id) || 0) > 0);
+    });
+
     return (
         <div className={clsx('bg-slate-900/50 border border-slate-800 rounded-xl p-6', className)}>
             <div className="flex items-center justify-between mb-4">
@@ -97,23 +107,38 @@ export function MitreHeatmap({
                     <Shield className="w-5 h-5 text-emerald-400" />
                     <h3 className="font-semibold text-slate-200">MITRE ATT&CK Coverage</h3>
                 </div>
-                <a
-                    href="https://attack.mitre.org/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-400 hover:underline flex items-center gap-1"
-                >
-                    View Full Matrix <ExternalLink className="w-3 h-3" />
-                </a>
+                <div className="flex items-center gap-4">
+                    {/* Legend */}
+                    <div className="hidden md:flex gap-3 text-[10px] text-slate-500">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-slate-800 border border-slate-700" /> No hits</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-yellow-500/20 border border-yellow-500/40" /> Low</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-orange-500/30 border border-orange-500/50" /> Med</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-500/40 border border-red-500/60" /> High</span>
+                    </div>
+                    <a
+                        href="https://attack.mitre.org/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                        View Full Matrix <ExternalLink className="w-3 h-3" />
+                    </a>
+                </div>
             </div>
 
             <div className="overflow-x-auto">
                 <div className="flex gap-1 min-w-max">
-                    {tactics.map((tactic) => {
-                        const tacticTechniques = techniques[tactic] || [];
+                    {visibleTactics.map((tactic) => {
+                        let tacticTechniques = techniques[tactic] || [];
+
+                        // Filter techniques if filterEmpty is true
+                        if (filterEmpty) {
+                            tacticTechniques = tacticTechniques.filter(tech => (detectionMap.get(tech.id) || 0) > 0);
+                        }
+
                         return (
-                            <div key={tactic} className="flex-1 min-w-[100px]">
-                                <div className="text-[10px] text-slate-400 font-medium mb-2 truncate" title={tactic}>
+                            <div key={tactic} className="flex-1 min-w-[140px]">
+                                <div className="text-[10px] text-slate-400 font-medium mb-2 truncate px-1" title={tactic}>
                                     {tactic}
                                 </div>
                                 <div className="space-y-1">
@@ -130,8 +155,9 @@ export function MitreHeatmap({
                                                 title={`${tech.name} (${count} detections)`}
                                             >
                                                 <div className="font-mono text-slate-300">{tech.id}</div>
+                                                <div className="truncate text-[9px] text-slate-500 mb-0.5" title={tech.name}>{tech.name}</div>
                                                 {count > 0 && (
-                                                    <div className="text-slate-400 mt-0.5">{count} hits</div>
+                                                    <div className="text-slate-400 font-medium">{count} hits</div>
                                                 )}
                                             </button>
                                         );
@@ -140,14 +166,12 @@ export function MitreHeatmap({
                             </div>
                         );
                     })}
+                    {visibleTactics.length === 0 && (
+                        <div className="w-full py-12 text-center text-slate-500 text-sm">
+                            No active techniques found using current filter.
+                        </div>
+                    )}
                 </div>
-            </div>
-
-            <div className="flex gap-4 mt-4 text-[10px] text-slate-500">
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-800 border border-slate-700" /> No detections</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500/20 border border-yellow-500/40" /> Low (1-2)</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500/30 border border-orange-500/50" /> Medium (3-5)</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500/40 border border-red-500/60" /> High (6+)</span>
             </div>
         </div>
     );

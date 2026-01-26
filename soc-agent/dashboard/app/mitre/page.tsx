@@ -23,7 +23,8 @@ export default function MitrePage() {
         map: Map<string, TechniqueDetection>;
     }>({ detections: [], map: new Map() });
 
-    // Modal state
+    // UI states
+    const [showFullMatrix, setShowFullMatrix] = useState(false);
     const [selectedTechniqueId, setSelectedTechniqueId] = useState<string | null>(null);
 
     // Initial load
@@ -74,12 +75,10 @@ export default function MitrePage() {
     // Calculate summary stats
     const totalDetections = stats.detections.reduce((acc, d) => acc + d.count, 0);
     const coveredTechniques = stats.detections.length;
-    // Count unique techniques with hits (simplistic covered tactics count)
+    // Count unique techniques with hits
     const coveredTactics = new Set(
         stats.detections.map(d => {
-            // Reverse lookup tactic ?? Or just count unique tactics in mitreData that have at least one hit
             if (!mitreData) return '';
-            // Find which tactic this technique belongs to
             const tacticsOfTech = Object.entries(mitreData.techniques).filter(([, techs]) =>
                 techs.some(t => t.id === d.techniqueId)
             ).map(([tactic]) => tactic);
@@ -91,7 +90,7 @@ export default function MitrePage() {
         <div className="min-h-screen bg-slate-950 text-slate-200 font-sans">
             <Navbar />
 
-            <main className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
+            <main className="max-w-[1700px] mx-auto px-6 py-8 space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
@@ -101,13 +100,31 @@ export default function MitrePage() {
                         <p className="text-slate-400">Technique coverage based on SOC rules and detected alerts</p>
                     </div>
                     <div className="flex items-center gap-3">
+                        {/* Filter Toggle */}
+                        <div className="bg-slate-800 rounded-lg p-1 flex border border-slate-700">
+                            <button
+                                onClick={() => setShowFullMatrix(false)}
+                                className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${!showFullMatrix ? 'bg-emerald-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                            >
+                                Active Only
+                            </button>
+                            <button
+                                onClick={() => setShowFullMatrix(true)}
+                                className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${showFullMatrix ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                            >
+                                Full Matrix
+                            </button>
+                        </div>
+
+                        <div className="w-px h-8 bg-slate-800 mx-2"></div>
+
                         <button
                             onClick={() => loadData(true)}
                             disabled={updating || loading}
                             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
                         >
                             <RotateCw className={`w-4 h-4 ${updating ? 'animate-spin' : ''}`} />
-                            {updating ? 'Updating Definitions...' : 'Update Definitions'}
+                            {updating ? 'Updating...' : 'Update Definitions'}
                         </button>
                         <a
                             href="https://attack.mitre.org/"
@@ -115,7 +132,7 @@ export default function MitrePage() {
                             rel="noopener noreferrer"
                             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm flex items-center gap-2"
                         >
-                            View MITRE ATT&CK <ExternalLink className="w-4 h-4" />
+                            View MITRE <ExternalLink className="w-4 h-4" />
                         </a>
                     </div>
                 </div>
@@ -155,7 +172,8 @@ export default function MitrePage() {
                         tactics={mitreData?.tactics}
                         techniques={mitreData?.techniques}
                         onTechniqueClick={handleTechniqueClick}
-                        className="min-h-[600px]"
+                        filterEmpty={!showFullMatrix}
+                        className="min-h-[500px]"
                     />
                 )}
 
