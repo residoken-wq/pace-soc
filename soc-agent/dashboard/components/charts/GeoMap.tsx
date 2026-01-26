@@ -78,16 +78,13 @@ export function GeoMap() {
                 {/* Map Visualization */}
                 <div className="lg:col-span-2 relative h-[300px] bg-slate-900 rounded-lg border border-slate-800 overflow-hidden group">
 
-                    {/* World Map Background Image - Using a reliable WikiCommons file via standard img tag if network allows, 
-                        OR use a background image style with a data URI. 
-                        Let's use a nice SVG Data URI pattern of a dot map.
-                    */}
-                    <div
-                        className="absolute inset-0 opacity-20 bg-[url('https://upload.wikimedia.org/wikipedia/commons/2/23/Blue_Marble_2002.png')] bg-cover bg-center grayscale"
-                    ></div>
+                    {/* World Map Background - Inline SVG */}
+                    <div className="absolute inset-0 opacity-30 pointer-events-none">
+                        <WorldMapBackground />
+                    </div>
 
                     {/* Grid overlay for tech look */}
-                    <div className="absolute inset-0 opacity-10"
+                    <div className="absolute inset-0 opacity-10 pointer-events-none"
                         style={{
                             backgroundImage: 'linear-gradient(to right, #334155 1px, transparent 1px), linear-gradient(to bottom, #334155 1px, transparent 1px)',
                             backgroundSize: '40px 40px'
