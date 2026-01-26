@@ -1,9 +1,50 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Globe, Loader2 } from 'lucide-react';
-import { geoMercator, geoPath } from 'd3-geo';
+import { geoMercator, geoPath, geoContains } from 'd3-geo';
 import * as topojson from 'topojson-client';
+
+// Dot Grid Component to generate the "Pixel Map" look
+const DotGrid = ({ mapData, projection, width, height }: { mapData: any, projection: any, width: number, height: number }) => {
+    const dots = useMemo(() => {
+        const points = [];
+        // Grid resolution (degrees)
+        const step = 2.0;
+
+        for (let lat = -60; lat <= 85; lat += step) {
+            for (let lon = -180; lon <= 180; lon += step) {
+                // Check if point is inside any country
+                const isLand = mapData.features.some((feature: any) =>
+                    geoContains(feature, [lon, lat])
+                );
+
+                if (isLand) {
+                    const coords = projection([lon, lat]);
+                    if (coords) {
+                        points.push({ x: coords[0], y: coords[1] });
+                    }
+                }
+            }
+        }
+        return points;
+    }, [mapData, projection]);
+
+    return (
+        <g className="fill-cyan-900/40">
+            {dots.map((pt, i) => (
+                <rect
+                    key={i}
+                    x={pt.x}
+                    y={pt.y}
+                    width={2.5}
+                    height={2.5}
+                    className="fill-cyan-500/30 hover:fill-cyan-400 transition-colors duration-300"
+                />
+            ))}
+        </g>
+    );
+};
 
 interface GeoStat {
     country: string;
