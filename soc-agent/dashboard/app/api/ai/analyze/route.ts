@@ -68,15 +68,14 @@ OUTPUT FORMAT (JSON only):
 
         // Use gemini-2.0-flash as default - Gemini 1.5 models are deprecated
         // Map old model names to working models
-        let modelName = aiConfig.model || 'gemini-2.0-flash';
+        let modelName = aiConfig.model || 'gemini-1.5-flash';
+
+        // Only map OLD deprecated aliases if necessary, but keep valid 1.5 names
         const modelMapping: Record<string, string> = {
-            'gemini-1.5-flash': 'gemini-2.0-flash',
-            'gemini-1.5-flash-latest': 'gemini-2.0-flash',
-            'gemini-1.5-flash-001': 'gemini-2.0-flash',
-            'gemini-1.5-pro': 'gemini-2.0-flash',
-            'gemini-1.5-pro-latest': 'gemini-2.0-flash',
-            'gemini-flash': 'gemini-2.0-flash',
-            'gemini-pro': 'gemini-2.0-flash',
+            'gemini-1.5-flash-latest': 'gemini-1.5-flash',
+            'gemini-1.5-pro-latest': 'gemini-1.5-pro',
+            'gemini-flash': 'gemini-1.5-flash',
+            'gemini-pro': 'gemini-1.5-pro',
         };
         if (modelMapping[modelName]) {
             modelName = modelMapping[modelName];

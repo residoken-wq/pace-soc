@@ -63,14 +63,24 @@ const TACTICS_TECHNIQUES: Record<string, { id: string; name: string }[]> = {
 export interface TechniqueDetection {
     techniqueId: string;
     count: number;
+    agents?: any[];
 }
 
 export interface MitreHeatmapProps {
     detections?: TechniqueDetection[];
+    tactics?: string[];
+    techniques?: Record<string, { id: string; name: string }[]>;
+    onTechniqueClick?: (techniqueId: string) => void;
     className?: string;
 }
 
-export function MitreHeatmap({ detections = [], className }: MitreHeatmapProps) {
+export function MitreHeatmap({
+    detections = [],
+    tactics = MITRE_TACTICS,
+    techniques = TACTICS_TECHNIQUES,
+    onTechniqueClick,
+    className
+}: MitreHeatmapProps) {
     const detectionMap = new Map(detections.map(d => [d.techniqueId, d.count]));
 
     const getHeatColor = (count: number) => {
@@ -99,36 +109,37 @@ export function MitreHeatmap({ detections = [], className }: MitreHeatmapProps) 
 
             <div className="overflow-x-auto">
                 <div className="flex gap-1 min-w-max">
-                    {MITRE_TACTICS.map((tactic) => (
-                        <div key={tactic} className="flex-1 min-w-[100px]">
-                            <div className="text-[10px] text-slate-400 font-medium mb-2 truncate" title={tactic}>
-                                {tactic}
+                    {tactics.map((tactic) => {
+                        const tacticTechniques = techniques[tactic] || [];
+                        return (
+                            <div key={tactic} className="flex-1 min-w-[100px]">
+                                <div className="text-[10px] text-slate-400 font-medium mb-2 truncate" title={tactic}>
+                                    {tactic}
+                                </div>
+                                <div className="space-y-1">
+                                    {tacticTechniques.map((tech) => {
+                                        const count = detectionMap.get(tech.id) || 0;
+                                        return (
+                                            <button
+                                                key={tech.id}
+                                                onClick={() => onTechniqueClick && onTechniqueClick(tech.id)}
+                                                className={clsx(
+                                                    'w-full text-left block p-2 rounded border text-[10px] transition-colors hover:ring-1 hover:ring-emerald-500/50',
+                                                    getHeatColor(count)
+                                                )}
+                                                title={`${tech.name} (${count} detections)`}
+                                            >
+                                                <div className="font-mono text-slate-300">{tech.id}</div>
+                                                {count > 0 && (
+                                                    <div className="text-slate-400 mt-0.5">{count} hits</div>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                {(TACTICS_TECHNIQUES[tactic] || []).map((tech) => {
-                                    const count = detectionMap.get(tech.id) || 0;
-                                    return (
-                                        <a
-                                            key={tech.id}
-                                            href={`https://attack.mitre.org/techniques/${tech.id}/`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className={clsx(
-                                                'block p-2 rounded border text-[10px] transition-colors hover:ring-1 hover:ring-emerald-500/50',
-                                                getHeatColor(count)
-                                            )}
-                                            title={`${tech.name} (${count} detections)`}
-                                        >
-                                            <div className="font-mono text-slate-300">{tech.id}</div>
-                                            {count > 0 && (
-                                                <div className="text-slate-400 mt-0.5">{count} hits</div>
-                                            )}
-                                        </a>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 

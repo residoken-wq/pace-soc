@@ -234,7 +234,7 @@ export default function LogsPage() {
                                     <th className="px-4 py-3 w-24 font-medium">Level</th>
                                     <th className="px-4 py-3 w-28 font-medium">Source</th>
                                     <th className="px-4 py-3 w-28 font-medium">Agent</th>
-                                    <th className="px-4 py-3 w-28 font-medium">Source IP</th>
+                                    <th className="px-4 py-3 w-36 font-medium">Source IP</th>
                                     <th className="px-4 py-3 font-medium">Message</th>
                                 </tr>
                             </thead>
@@ -325,14 +325,14 @@ export default function LogsPage() {
                                                 <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-xl flex flex-col items-center justify-center text-center">
                                                     <div className="text-sm text-slate-400 mb-1">Risk Assessment</div>
                                                     <div className={`text-4xl font-bold ${(analysisResult.riskScore || 0) > 75 ? 'text-red-400' :
-                                                            (analysisResult.riskScore || 0) > 40 ? 'text-yellow-400' : 'text-emerald-400'
+                                                        (analysisResult.riskScore || 0) > 40 ? 'text-yellow-400' : 'text-emerald-400'
                                                         }`}>
                                                         {analysisResult.riskScore || 0}/100
                                                     </div>
                                                     <div className={`text-xs uppercase font-bold mt-1 px-2 py-0.5 rounded ${analysisResult.riskLevel === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                                            analysisResult.riskLevel === 'high' ? 'bg-orange-500/20 text-orange-400' :
-                                                                analysisResult.riskLevel === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                    'bg-emerald-500/20 text-emerald-400'
+                                                        analysisResult.riskLevel === 'high' ? 'bg-orange-500/20 text-orange-400' :
+                                                            analysisResult.riskLevel === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                'bg-emerald-500/20 text-emerald-400'
                                                         }`}>
                                                         {analysisResult.riskLevel || 'LOW'} Level
                                                     </div>

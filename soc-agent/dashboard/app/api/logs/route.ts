@@ -156,7 +156,13 @@ export async function GET(request: Request) {
             const ruleLevel = src.rule?.level || 0;
 
             // Extract source IP (attacker IP) from various Wazuh fields
-            const srcIp = src.data?.srcip || src.data?.src_ip || '-';
+            const srcIp = src.data?.srcip ||
+                src.data?.src_ip ||
+                src.data?.rhost ||
+                src.data?.remote_ip ||
+                src.data?.aws?.sourceIPAddress ||
+                src.data?.win?.eventdata?.ipAddress ||
+                '-';
             // Extract User
             const user = src.data?.srcuser || src.data?.user || src.data?.dstuser || '-';
 

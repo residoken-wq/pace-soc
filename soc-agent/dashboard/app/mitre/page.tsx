@@ -1,27 +1,97 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
-import { MitreHeatmap } from '@/components/charts/MitreHeatmap';
-import { Shield, ExternalLink, Filter, Search } from 'lucide-react';
+import { MitreHeatmap, TechniqueDetection, MitreHeatmapProps } from '@/components/charts/MitreHeatmap';
+import { Shield, ExternalLink, Filter, RotateCw, Loader2 } from 'lucide-react';
 import { MITRE_TACTICS } from '@/lib/rules';
-
-// Sample detection data - in production would come from API
-const SAMPLE_DETECTIONS = [
-    { techniqueId: 'T1110', count: 8 },  // Brute Force
-    { techniqueId: 'T1078', count: 3 },  // Valid Accounts
-    { techniqueId: 'T1059', count: 5 },  // Command and Scripting
-    { techniqueId: 'T1071', count: 12 }, // Application Layer Protocol
-    { techniqueId: 'T1046', count: 4 },  // Network Service Discovery
-    { techniqueId: 'T1136', count: 2 },  // Create Account
-];
+import { TechniqueDetailModal } from '@/components/mitre/TechniqueDetailModal';
 
 export default function MitrePage() {
+    const [loading, setLoading] = useState(true);
+    const [updating, setUpdating] = useState(false);
+
+    // Data states
+    const [mitreData, setMitreData] = useState<{
+        tactics: string[];
+        techniques: Record<string, any[]>;
+        details: Record<string, any>;
+    } | null>(null);
+
+    const [stats, setStats] = useState<{
+        detections: TechniqueDetection[];
+        map: Map<string, TechniqueDetection>;
+    }>({ detections: [], map: new Map() });
+
+    // Modal state
+    const [selectedTechniqueId, setSelectedTechniqueId] = useState<string | null>(null);
+
+    // Initial load
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async (forceRefresh = false) => {
+        if (forceRefresh) setUpdating(true);
+        else setLoading(true);
+
+        try {
+            // 1. Fetch MITRE definitions
+            const mitreRes = await fetch(`/api/mitre/data${forceRefresh ? '?refresh=true' : ''}`);
+            const mitreJson = await mitreRes.json();
+
+            // 2. Fetch Stats
+            const statsRes = await fetch('/api/mitre/stats');
+            const statsJson = await statsRes.json(); // Array of { techniqueId, count, agents }
+
+            if (mitreJson.tactics) {
+                setMitreData(mitreJson);
+            }
+
+            if (Array.isArray(statsJson)) {
+                setStats({
+                    detections: statsJson,
+                    map: new Map(statsJson.map((d: any) => [d.techniqueId, d]))
+                });
+            }
+
+        } catch (error) {
+            console.error('Failed to load MITRE data:', error);
+        } finally {
+            setLoading(false);
+            setUpdating(false);
+        }
+    };
+
+    const handleTechniqueClick = (id: string) => {
+        setSelectedTechniqueId(id);
+    };
+
+    const handleCloseModal = () => {
+        setSelectedTechniqueId(null);
+    };
+
+    // Calculate summary stats
+    const totalDetections = stats.detections.reduce((acc, d) => acc + d.count, 0);
+    const coveredTechniques = stats.detections.length;
+    // Count unique techniques with hits (simplistic covered tactics count)
+    const coveredTactics = new Set(
+        stats.detections.map(d => {
+            // Reverse lookup tactic ?? Or just count unique tactics in mitreData that have at least one hit
+            if (!mitreData) return '';
+            // Find which tactic this technique belongs to
+            const tacticsOfTech = Object.entries(mitreData.techniques).filter(([, techs]) =>
+                techs.some(t => t.id === d.techniqueId)
+            ).map(([tactic]) => tactic);
+            return tacticsOfTech[0] || '';
+        })
+    ).size;
+
     return (
         <div className="min-h-screen bg-slate-950 text-slate-200 font-sans">
             <Navbar />
 
-            <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+            <main className="max-w-[1600px] mx-auto px-6 py-8 space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
@@ -30,42 +100,64 @@ export default function MitrePage() {
                         </h2>
                         <p className="text-slate-400">Technique coverage based on SOC rules and detected alerts</p>
                     </div>
-                    <a
-                        href="https://attack.mitre.org/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm flex items-center gap-2"
-                    >
-                        View MITRE ATT&CK <ExternalLink className="w-4 h-4" />
-                    </a>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => loadData(true)}
+                            disabled={updating || loading}
+                            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+                        >
+                            <RotateCw className={`w-4 h-4 ${updating ? 'animate-spin' : ''}`} />
+                            {updating ? 'Updating Definitions...' : 'Update Definitions'}
+                        </button>
+                        <a
+                            href="https://attack.mitre.org/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm flex items-center gap-2"
+                        >
+                            View MITRE ATT&CK <ExternalLink className="w-4 h-4" />
+                        </a>
+                    </div>
                 </div>
 
                 {/* Summary Stats */}
                 <div className="grid grid-cols-4 gap-4">
                     <StatCard
                         label="Tactics Covered"
-                        value={`${new Set(SAMPLE_DETECTIONS.map(_ => 'X')).size} / 12`}
+                        value={`${coveredTactics} / ${mitreData?.tactics?.length || 12}`}
                         color="emerald"
                     />
                     <StatCard
                         label="Techniques Detected"
-                        value={SAMPLE_DETECTIONS.length}
+                        value={coveredTechniques}
                         color="blue"
                     />
                     <StatCard
                         label="Total Detections"
-                        value={SAMPLE_DETECTIONS.reduce((sum, d) => sum + d.count, 0)}
+                        value={totalDetections}
                         color="yellow"
                     />
                     <StatCard
                         label="High Activity"
-                        value={SAMPLE_DETECTIONS.filter(d => d.count >= 6).length}
+                        value={stats.detections.filter(d => d.count >= 6).length}
                         color="red"
                     />
                 </div>
 
                 {/* MITRE Heatmap */}
-                <MitreHeatmap detections={SAMPLE_DETECTIONS} />
+                {loading && !mitreData ? (
+                    <div className="flex items-center justify-center p-12 bg-slate-900/50 border border-slate-800 rounded-xl">
+                        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                    </div>
+                ) : (
+                    <MitreHeatmap
+                        detections={stats.detections}
+                        tactics={mitreData?.tactics}
+                        techniques={mitreData?.techniques}
+                        onTechniqueClick={handleTechniqueClick}
+                        className="min-h-[600px]"
+                    />
+                )}
 
                 {/* Tactics Reference */}
                 <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
@@ -91,6 +183,24 @@ export default function MitrePage() {
                     </div>
                 </div>
             </main>
+
+            {/* Detail Modal */}
+            {selectedTechniqueId && mitreData && (
+                <TechniqueDetailModal
+                    isOpen={!!selectedTechniqueId}
+                    onClose={handleCloseModal}
+                    technique={{
+                        id: selectedTechniqueId,
+                        name: mitreData.details[selectedTechniqueId]?.name || selectedTechniqueId,
+                        description: mitreData.details[selectedTechniqueId]?.description,
+                        url: mitreData.details[selectedTechniqueId]?.url
+                    }}
+                    stats={{
+                        count: stats.map.get(selectedTechniqueId)?.count || 0,
+                        agents: stats.map.get(selectedTechniqueId)?.agents || []
+                    }}
+                />
+            )}
         </div>
     );
 }
