@@ -146,6 +146,24 @@ grep -i group /var/ossec/etc/ossec.conf
 systemctl restart wazuh-agent
 ```
 
+### Server Restart Health Check
+```bash
+# Check Wazuh Manager status
+systemctl status wazuh-manager
+
+# Check Wazuh API status
+curl -k -u wazuh-wui:kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1 https://192.168.1.206:55000/
+
+# Check Wazuh Indexer status
+curl -k -u admin:lAEg3oxh+zhrp4fM60KRQKd2euZCl7cd https://192.168.1.206:9200
+
+# Check Filebeat status
+systemctl status filebeat
+
+# Verify SOC Dashboard is running
+docker ps | grep soc-dashboard
+```
+
 ---
 
 ## 📁 Important Paths

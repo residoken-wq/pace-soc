@@ -3,7 +3,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
-import { Save, Bell, Server, Cpu, HardDrive, Check, Loader2, Database, Mail, MessageSquare, Wifi, XCircle, Trash2, AlertTriangle, Key, Sparkles, Brain } from 'lucide-react';
+import { Save, Bell, Server, Cpu, HardDrive, Check, Loader2, Database, Mail, MessageSquare, Wifi, XCircle, Trash2, AlertTriangle, Key, Sparkles, Brain, Stethoscope, RefreshCw, TerminalSquare } from 'lucide-react';
+
 
 interface Settings {
     alertThresholds: {
@@ -527,6 +528,19 @@ export default function SettingsPage() {
                     </div>
                 </section>
 
+                {/* System Diagnostics & Auto-Fix */}
+                <section className="space-y-4">
+                    <h3 className="text-lg font-semibold text-rose-400 flex items-center gap-2">
+                        <Stethoscope className="w-5 h-5" /> System Diagnostics & Fixes
+                    </h3>
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden p-6 space-y-4">
+                        <p className="text-sm text-slate-400">
+                            Check module connectivity (e.g., Wazuh Manager reachability, Filebeat, "Operation was aborted" errors) and generate auto-fix commands.
+                        </p>
+                        <SystemDiagnosticsSection />
+                    </div>
+                </section>
+
                 {/* Log Cleanup / Data Retention */}
                 <section className="space-y-4">
                     <h3 className="text-lg font-semibold text-red-400 flex items-center gap-2">
@@ -798,7 +812,7 @@ function TestEmailButton({ settings }: { settings: Settings }) {
             <button
                 onClick={sendTestEmail}
                 disabled={sending}
-                className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
             >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
                 Send Test Email
@@ -809,7 +823,113 @@ function TestEmailButton({ settings }: { settings: Settings }) {
                     {result.message}
                 </div>
             )}
+        </div>);
+} function SystemDiagnosticsSection() {
+    const [running, setRunning] = useState(false); const [result, setResult] = useState<{ success: boolean; diagnostics?: any[]; overallStatus?: string; error?: string } | null>(null); const [fixCommands, setFixCommands] = useState<string[] | null>(null); const runDiagnostics = async () => {
+        setRunning(true); setResult(null); setFixCommands(null);
+        try {
+            const res = await fetch('/api/system/fix', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'diagnose' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setResult(data);
+                if (data.overallStatus !== 'healthy') {
+                    getFixCommands();
+                }
+            } else {
+                setResult({ success: false, error: data.error });
+            }
+        } catch (e: any) {
+            setResult({ success: false, error: e.message });
+        } finally {
+            setRunning(false);
+        }
+    };
+
+    const getFixCommands = async () => {
+        try {
+            const res = await fetch('/api/system/fix', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'fix' })
+            });
+            const data = await res.json();
+            if (data.success && data.commands) {
+                setFixCommands(data.commands);
+            }
+        } catch (e: any) {
+            console.error("Failed to generate fix commands:", e);
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <button
+                onClick={runDiagnostics}
+                disabled={running}
+                className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 rounded-lg text-sm flex items-center gap-2 disabled:opacity-50"
+            >
+                {running ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Stethoscope className="w-4 h-4" />}
+                Run Diagnostics
+            </button>
+
+            {result && (
+                <div className={`p-4 rounded-lg border bg-slate-950 ${result.overallStatus === 'healthy' ? 'border-emerald-500/30' : 'border-rose-500/30'}`}>
+                    {result.success ? (
+                        <>
+                            <div className="flex items-center gap-2 mb-3">
+                                {result.overallStatus === 'healthy' ? (
+                                    <Check className="w-5 h-5 text-emerald-400" />
+                                ) : (
+                                    <AlertTriangle className="w-5 h-5 text-rose-400" />
+                                )}
+                                <span className={`font-semibold ${result.overallStatus === 'healthy' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                    System Status: {result.overallStatus?.toUpperCase()}
+                                </span>
+                            </div>
+                            <div className="space-y-2">
+                                {result.diagnostics?.map((diag, i) => (
+                                    <div key={i} className="flex flex-col text-sm border-l-2 pl-3 py-1 border-slate-700">
+                                        <div className="flex items-center gap-2">
+                                            <span className={diag.status === 'success' ? 'text-emerald-400' : 'text-red-400'}>
+                                                {diag.status === 'success' ? '✓' : '✗'}
+                                            </span>
+                                            <span className="text-slate-300 font-medium">{diag.step}</span>
+                                        </div>
+                                        <span className="text-slate-500 text-xs ml-4">{diag.message}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex items-center gap-2 text-red-400">
+                            <XCircle className="w-4 h-4" />
+                            {result.error}
+                        </div>
+                    )}
+
+                    {/* Auto-Fix Instructions */}
+                    {fixCommands && (
+                        <div className="mt-4 pt-4 border-t border-slate-800">
+                            <div className="flex items-center gap-2 mb-2">
+                                <TerminalSquare className="w-4 h-4 text-rose-300" />
+                                <h4 className="text-sm font-medium text-rose-300">Recommended Fix Actions (Run on Host)</h4>
+                            </div>
+                            <div className="bg-slate-900 border border-slate-700 rounded-lg p-3">
+                                <pre className="text-xs font-mono text-emerald-400 whitespace-pre-wrap">
+                                    {fixCommands.join('\n')}
+                                </pre>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-2">Copy these commands and run them as root on the SOC Manager host machine to attempt recovery.</p>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
+
 
