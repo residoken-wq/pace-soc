@@ -20,13 +20,13 @@ RUN curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyr
 RUN apt-get update && apt-get install -y wazuh-agent && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy entrypoint script if needed, or just configure in command
-# We use a simple entrypoint to register (if needed) and start
-WORKDIR /var/ossec
+# Copy entrypoint script
+COPY wazuh-entrypoint.sh /wazuh-entrypoint.sh
+RUN chmod +x /wazuh-entrypoint.sh
 
 # Expose ports if necessary (usually outbound)
 # Volume for data persistence
 VOLUME ["/var/ossec/etc", "/var/ossec/logs", "/var/ossec/queue"]
 
-# Run in foreground via service + tail
-CMD service wazuh-agent start && tail -f /var/ossec/logs/ossec.log
+# Run in foreground via entrypoint script
+ENTRYPOINT ["/wazuh-entrypoint.sh"]

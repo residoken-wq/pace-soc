@@ -21,6 +21,7 @@ export default function LogsPage() {
     const [filter, setFilter] = useState({ level: 'all', source: 'all', search: '' });
     const [autoRefresh, setAutoRefresh] = useState(true); // Default ON for real-time
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     // AI Analysis State
     const [analyzing, setAnalyzing] = useState(false);
@@ -30,6 +31,7 @@ export default function LogsPage() {
     const fetchLogs = async (isRefresh = false) => {
         // Only show loading on initial load, not refreshes
         if (!isRefresh) setLoading(true);
+        setError(null);
         try {
             // Add cache-busting timestamp to prevent stale data
             const res = await fetch(`/api/logs?_t=${Date.now()}`, {
@@ -39,10 +41,17 @@ export default function LogsPage() {
                 }
             });
             const data = await res.json();
-            setLogs(data.logs || []);
+            if (data.success === false) {
+                setError(data.message || data.error || 'Failed to fetch external logs');
+                setLogs([]);
+            } else {
+                setLogs(data.logs || []);
+            }
             setLastUpdated(new Date());
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
+            setError(e.message || 'Network error fetching logs');
+            setLogs([]);
         } finally {
             if (!isRefresh) setLoading(false);
         }
@@ -239,7 +248,17 @@ export default function LogsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800/50">
-                                {filteredLogs.length === 0 ? (
+                                {error ? (
+                                    <tr>
+                                        <td colSpan={6} className="px-4 py-12 text-center text-red-400 bg-red-500/5">
+                                            <div className="flex flex-col items-center justify-center gap-2">
+                                                <XCircle className="w-8 h-8 opacity-50 mb-2" />
+                                                <p className="font-semibold text-base">Connection Error</p>
+                                                <p className="text-sm opacity-80 max-w-lg mx-auto">{error}</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : filteredLogs.length === 0 ? (
                                     <tr>
                                         <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
                                             {loading ? 'Loading logs...' : 'No logs found matching your criteria'}
