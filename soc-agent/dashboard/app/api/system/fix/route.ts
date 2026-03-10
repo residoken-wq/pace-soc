@@ -29,6 +29,44 @@ export async function POST(request: Request) {
                 isWazuhReachable = false;
             }
 
+            const wazuhIndexerUrl = process.env.WAZUH_INDEXER_URL || 'https://127.0.0.1:9200';
+            const wazuhIndexerUser = process.env.WAZUH_INDEXER_USER || 'admin';
+            const wazuhIndexerPassword = process.env.WAZUH_INDEXER_PASSWORD || process.env.WAZUH_API_PASSWORD || '';
+            let isIndexerReachable = false;
+            let indexerMessage = '';
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+                const res = await fetch(wazuhIndexerUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Basic ' + Buffer.from(`${wazuhIndexerUser}:${wazuhIndexerPassword}`).toString('base64')
+                    },
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (res.ok) {
+                    isIndexerReachable = true;
+                } else if (res.status === 401) {
+                    indexerMessage = 'Authentication Failed (HTTP 401): Check WAZUH_INDEXER_PASSWORD in .env';
+                    isIndexerReachable = false;
+                } else {
+                    indexerMessage = `HTTP Error ${res.status}`;
+                    isIndexerReachable = false;
+                }
+            } catch (err: any) {
+                if (err.message.includes('ECONNREFUSED')) {
+                    indexerMessage = `Connection Refused: Ensure Indexer is running on the host network.`;
+                } else {
+                    indexerMessage = err.message;
+                }
+                isIndexerReachable = false;
+            }
+
             const diagnostics = [
                 {
                     step: 'Wazuh Manager Reachability',
@@ -40,13 +78,22 @@ export async function POST(request: Request) {
                         ? null
                         : 'systemctl restart wazuh-manager'
                 },
-                // Add more diagnostics here as needed
+                {
+                    step: 'Wazuh Indexer Reachability',
+                    status: isIndexerReachable ? 'success' : 'error',
+                    message: isIndexerReachable
+                        ? `Successfully connected to Indexer at ${wazuhIndexerUrl}`
+                        : `Could not connect to Indexer at ${wazuhIndexerUrl}. Error: ${indexerMessage}`,
+                    recommendedAction: isIndexerReachable
+                        ? null
+                        : 'systemctl restart wazuh-indexer'
+                }
             ];
 
             return NextResponse.json({
                 success: true,
                 diagnostics,
-                overallStatus: isWazuhReachable ? 'healthy' : 'degraded'
+                overallStatus: (isWazuhReachable && isIndexerReachable) ? 'healthy' : 'degraded'
             });
         }
 

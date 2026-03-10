@@ -216,7 +216,7 @@ export async function GET(request: Request) {
             source: 'error',
             total: 0,
             logs: [],
-            message: 'Cannot connect to Wazuh Indexer. Please check connection settings.'
+            message: `Indexer Connection Failed: ${error.message}`
         });
     }
 }
