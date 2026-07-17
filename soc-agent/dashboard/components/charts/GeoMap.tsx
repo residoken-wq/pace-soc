@@ -67,6 +67,7 @@ export function GeoMap() {
             .then(payload => {
                 const stats = Array.isArray(payload) ? payload : payload?.data;
                 setData(Array.isArray(stats) ? stats : []);
+                if (payload?.available === false) setMapError(false);
             })
             .catch(err => console.error("GeoIP Stats load failed", err));
 

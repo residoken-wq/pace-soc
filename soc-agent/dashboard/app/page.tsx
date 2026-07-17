@@ -146,7 +146,7 @@ export default function Dashboard() {
         {/* Error Banner */}
         {error && (
           <div className="px-4 py-3 bg-yellow-500/10 text-yellow-400 text-sm rounded-lg border border-yellow-500/20">
-            ⚠️ Using fallback data: {error}
+            ⚠️ Wazuh data unavailable: {error}
           </div>
         )}
 
@@ -491,4 +491,3 @@ function CollapsibleSection({ title, defaultOpen = true, children }: { title: st
     </div>
   );
 }
-
