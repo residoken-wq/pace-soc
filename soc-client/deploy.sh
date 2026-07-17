@@ -14,7 +14,7 @@ set -euo pipefail
 # --- Configuration ---
 # Defaults
 DEFAULT_MANAGER_IP="192.168.1.206"
-DEFAULT_WAZUH_VERSION="4.14.1"
+DEFAULT_WAZUH_VERSION="4.14.6"
 INSTALL_TESTS=false
 AGENT_NAME=""
 MANAGER_IP=""
@@ -164,7 +164,7 @@ cat > /var/ossec/etc/ossec.conf << EOF
     <directories realtime="yes" check_all="yes">/opt/soc-agent</directories>
   </syscheck>
 
-  <syscollector>
+  <wodle name="syscollector">
     <disabled>no</disabled>
     <interval>1h</interval>
     <hardware>yes</hardware>
@@ -173,7 +173,7 @@ cat > /var/ossec/etc/ossec.conf << EOF
     <packages>yes</packages>
     <ports>yes</ports>
     <processes>yes</processes>
-  </syscollector>
+  </wodle>
 </ossec_config>
 EOF
 
@@ -186,7 +186,7 @@ if [ "$INSTALL_TESTS" = true ]; then
     # We download individual files from raw.githubusercontent.com to avoid needing git
     # Assuming 'main' branch.
     BASE_URL="https://raw.githubusercontent.com/pace-soc/pace-soc/main/soc-agent/tests"
-    FILES=("run-all-tests.sh" "test-bruteforce.sh" "test-file-integrity.sh" "test-malware.sh" "test-network-scan.sh" "test-privilege-escalation.sh" "test-web-attack.sh" "README.md")
+    FILES=("run-all-tests.sh" "test-bruteforce.sh" "test-file-integrity.sh" "test-network-scan.sh" "test-privilege-escalation.sh" "test-web-attack.sh" "README.md")
 
     for file in "${FILES[@]}"; do
         log "Downloading $file..."

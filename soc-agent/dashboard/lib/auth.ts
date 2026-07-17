@@ -2,89 +2,31 @@
 // Provides secure token generation and validation
 
 import { cookies } from 'next/headers';
-
-// In production, use a strong random secret from environment
-const JWT_SECRET = process.env.JWT_SECRET || 'soc-dashboard-secret-change-in-production-32chars';
-const TOKEN_EXPIRY = 60 * 60 * 1000; // 1 hour in milliseconds
+import { createToken, TokenPayload, UserRole, validateToken } from './token';
 
 // User configuration - in production, use database
-const USERS: Record<string, { password: string; role: string; name: string }> = {
+const USERS: Record<string, { password?: string; role: UserRole; name: string }> = {
     admin: {
-        password: process.env.SOC_ADMIN_PASSWORD || 'SocAdmin@2024!',
+        password: process.env.SOC_ADMIN_PASSWORD,
         role: 'admin',
         name: 'Administrator'
     },
     analyst: {
-        password: process.env.SOC_ANALYST_PASSWORD || 'SocAnalyst@2024!',
+        password: process.env.SOC_ANALYST_PASSWORD,
         role: 'analyst',
         name: 'SOC Analyst'
     }
 };
 
-interface TokenPayload {
-    username: string;
-    role: string;
-    name: string;
-    iat: number;
-    exp: number;
-}
-
-// Simple HMAC-like signature using base64 (for demo - use jose/jsonwebtoken in production)
-function sign(payload: object): string {
-    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-    const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
-
-    // Simple signature using secret (NOT cryptographically secure - use crypto.subtle in production)
-    const signatureInput = `${header}.${payloadStr}.${JWT_SECRET}`;
-    const signature = Buffer.from(signatureInput).toString('base64url').substring(0, 43);
-
-    return `${header}.${payloadStr}.${signature}`;
-}
-
-function verify(token: string): TokenPayload | null {
-    try {
-        const parts = token.split('.');
-        if (parts.length !== 3) return null;
-
-        const [header, payloadStr, signature] = parts;
-
-        // Verify signature
-        const expectedSig = Buffer.from(`${header}.${payloadStr}.${JWT_SECRET}`).toString('base64url').substring(0, 43);
-        if (signature !== expectedSig) return null;
-
-        // Decode and validate payload
-        const payload: TokenPayload = JSON.parse(Buffer.from(payloadStr, 'base64url').toString());
-
-        // Check expiry
-        if (payload.exp < Date.now()) return null;
-
-        return payload;
-    } catch {
-        return null;
-    }
-}
-
-export function createToken(username: string, role: string, name: string): string {
-    const payload: TokenPayload = {
-        username,
-        role,
-        name,
-        iat: Date.now(),
-        exp: Date.now() + TOKEN_EXPIRY
-    };
-    return sign(payload);
-}
-
-export function validateToken(token: string): TokenPayload | null {
-    return verify(token);
-}
-
-export function validateCredentials(username: string, password: string): { valid: boolean; role?: string; name?: string } {
+export function validateCredentials(username: string, password: string): { valid: boolean; role?: UserRole; name?: string } {
     const user = USERS[username];
-    if (!user) return { valid: false };
+    if (!user || !user.password) return { valid: false };
     if (user.password !== password) return { valid: false };
     return { valid: true, role: user.role, name: user.name };
 }
+
+export { createToken, validateToken };
+export type { TokenPayload, UserRole };
 
 export async function getSessionUser(): Promise<TokenPayload | null> {
     try {

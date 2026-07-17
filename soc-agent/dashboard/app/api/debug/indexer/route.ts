@@ -17,11 +17,9 @@ export async function GET() {
         WAZUH_INDEXER_URL,
         WAZUH_INDEXER_USER,
         WAZUH_INDEXER_PASSWORD: WAZUH_INDEXER_PASSWORD ? '***SET***' : '***NOT SET***',
-        NODE_TLS_REJECT_UNAUTHORIZED: process.env.NODE_TLS_REJECT_UNAUTHORIZED
     };
 
     // Disable SSL verification
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
     // Test 1: Basic connectivity
     try {

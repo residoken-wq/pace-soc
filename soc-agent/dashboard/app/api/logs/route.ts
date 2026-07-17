@@ -6,7 +6,6 @@ const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
 const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_INDEXER_PASSWORD || process.env.WAZUH_API_PASSWORD || '';
 
 // Disable SSL verification for self-signed certs
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 interface LogEntry {
     id: string;

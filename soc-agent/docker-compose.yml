@@ -80,7 +80,6 @@ services:
     network_mode: host # Use host network to access localhost:9200
     environment:
       - NODE_ENV=production
-      - NODE_TLS_REJECT_UNAUTHORIZED=0
       - PORT=8080
       - HOSTNAME=0.0.0.0
       # Wazuh API Connection (localhost since host network)
@@ -92,13 +91,12 @@ services:
       - WAZUH_INDEXER_USER=${WAZUH_INDEXER_USER:-admin}
       - WAZUH_INDEXER_PASSWORD=${WAZUH_INDEXER_PASSWORD}
       # Authentication
-      - SOC_ADMIN_PASSWORD=${SOC_ADMIN_PASSWORD:-SocAdmin@2024!}
-      - SOC_ANALYST_PASSWORD=${SOC_ANALYST_PASSWORD:-SocAnalyst@2024!}
-      - JWT_SECRET=${JWT_SECRET:-soc-jwt-secret-change-in-production}
+      - SOC_ADMIN_PASSWORD=${SOC_ADMIN_PASSWORD:?SOC_ADMIN_PASSWORD must be set}
+      - SOC_ANALYST_PASSWORD=${SOC_ANALYST_PASSWORD:?SOC_ANALYST_PASSWORD must be set}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       # CORS
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-https://soc.pace.edu.vn}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - soc-dashboard-data:/app/data
 
 volumes:

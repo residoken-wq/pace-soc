@@ -106,16 +106,16 @@ export default function RealTimeCharts({ agentName = "SOC Manager (Local)", agen
                     } else {
                         // First poll - estimate based on current traffic
                         // Show a small baseline to indicate network is being monitored
-                        networkSpeed = Math.random() * 30 + 5; // 5-35 KB/s initial
+                        networkSpeed = 0;
                     }
                 }
 
                 // Fallback for demo mode or when no data
-                if (cpuPercent === 0 && (!metrics.cpu || metrics.cpu.total === 0)) cpuPercent = Math.random() * 20 + 5;
+                if (cpuPercent === 0 && (!metrics.cpu || metrics.cpu.total === 0)) cpuPercent = 0;
                 // Only show random network if truly no data (not just first poll)
-                if (networkSpeed === 0 && !fromWazuh && !metrics.network) networkSpeed = Math.random() * 50 + 10;
+                if (networkSpeed === 0 && !fromWazuh && !metrics.network) networkSpeed = 0;
 
-                const diskPercent = metrics.disk ? metrics.disk.percent : (Math.random() * 5 + 40);
+                const diskPercent = metrics.disk ? metrics.disk.percent : 0;
                 const ramPercent = metrics.ram ? metrics.ram.percent : 0;
 
                 // Update Previous

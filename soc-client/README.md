@@ -15,7 +15,7 @@ curl -sSL https://raw.githubusercontent.com/pace-soc/pace-soc/main/soc-client/de
 **Manual arguments:**
 ```bash
 # Usage: ./deploy.sh [AGENT_NAME] [MANAGER_IP] [VERSION] [--install-tests]
-sudo ./deploy.sh MyServer 192.168.1.206 4.14.1 --install-tests
+sudo ./deploy.sh MyServer 192.168.1.206 4.14.6 --install-tests
 ```
 
 ### Windows (PowerShell)
@@ -30,7 +30,7 @@ Run as **Administrator**:
 
 | Setting | Default Value | Description |
 |---------|---------------|-------------|
-| Wazuh Version | 4.14.1 | Agent version to install |
+| Wazuh Version | 4.14.6 | Agent version to install |
 | Manager IP | 192.168.1.206 | SOC Center IP |
 | Protocol | TCP | Communication protocol |
 | Port | 1514 | Agent connection port |

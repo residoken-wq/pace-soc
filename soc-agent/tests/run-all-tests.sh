@@ -25,9 +25,14 @@ echo "2. Running Network Scan Test..."
 "$SCRIPT_DIR/test-network-scan.sh"
 echo ""
 
-echo "3. Running Malware Simulation..."
-"$SCRIPT_DIR/test-malware.sh"
-echo ""
+if [ -x "$SCRIPT_DIR/test-malware.sh" ]; then
+  echo "3. Running Malware Simulation..."
+  "$SCRIPT_DIR/test-malware.sh"
+  echo ""
+else
+  echo "3. Malware Simulation skipped: test-malware.sh is not installed."
+  echo ""
+fi
 
 echo "4. Running Web Attack Simulation..."
 "$SCRIPT_DIR/test-web-attack.sh"

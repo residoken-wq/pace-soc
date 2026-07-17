@@ -14,6 +14,11 @@ export async function GET(request: NextRequest) {
         }, { status: 400 });
     }
 
+    // Only allow literal private IPv4 addresses; do not resolve arbitrary hostnames.
+    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+        return NextResponse.json({ success: false, error: 'Only literal private IPv4 addresses are allowed' }, { status: 400 });
+    }
+
     // Basic validation
     if (port < 1 || port > 65535) {
         return NextResponse.json({

@@ -1,13 +1,6 @@
 // Wazuh API Client with JWT Authentication
 // Handles self-signed SSL certificates for Next.js 14+
 
-// CRITICAL: Disable SSL verification globally for this process
-// This is required for self-signed certificates on internal Wazuh servers
-// In production, consider using proper CA-signed certificates
-if (process.env.NODE_ENV !== 'test') {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
-
 const WAZUH_MANAGER_URL = process.env.WAZUH_MANAGER_URL || 'https://192.168.1.206:55000';
 const WAZUH_API_USER = process.env.WAZUH_API_USER || 'wazuh-wui';
 const WAZUH_API_PASSWORD = process.env.WAZUH_API_PASSWORD;
@@ -27,6 +20,7 @@ export async function getWazuhToken(): Promise<string> {
     }
 
     try {
+        if (!WAZUH_API_PASSWORD) throw new Error('WAZUH_API_PASSWORD is not configured');
         const credentials = Buffer.from(`${WAZUH_API_USER}:${WAZUH_API_PASSWORD}`).toString('base64');
 
         const controller = new AbortController();

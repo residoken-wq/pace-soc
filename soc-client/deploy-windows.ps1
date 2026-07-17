@@ -7,7 +7,7 @@
 param(
     [string]$AgentName = $env:COMPUTERNAME,
     [string]$ManagerIP = "192.168.1.206",
-    [string]$WazuhVersion = "4.14.1",
+    [string]$WazuhVersion = "4.14.6",
     [switch]$InstallTests
 )
 
@@ -68,7 +68,7 @@ if ($InstallTests) {
     New-Item -ItemType Directory -Force -Path $TestDir | Out-Null
     
     $BaseUrl = "https://raw.githubusercontent.com/pace-soc/pace-soc/main/soc-agent/tests"
-    $Files = @("run-all-tests.sh", "test-bruteforce.sh", "test-file-integrity.sh", "test-malware.sh", "test-network-scan.sh", "test-privilege-escalation.sh", "test-web-attack.sh", "README.md")
+    $Files = @("run-all-tests.sh", "test-bruteforce.sh", "test-file-integrity.sh", "test-network-scan.sh", "test-privilege-escalation.sh", "test-web-attack.sh", "README.md")
 
     foreach ($file in $Files) {
         Write-Host "Downloading $file..."

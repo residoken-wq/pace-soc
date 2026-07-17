@@ -1,0 +1,40 @@
+{
+  "policy": {
+    "policy_id": "soc-wazuh-alert-retention-90d",
+    "description": "Keep searchable Wazuh alerts for 90 days, then delete by index lifecycle policy.",
+    "schema_version": 17,
+    "default_state": "retention",
+    "states": [
+      {
+        "name": "retention",
+        "actions": [],
+        "transitions": [
+          {
+            "state_name": "delete",
+            "conditions": { "min_index_age": "90d" }
+          }
+        ]
+      },
+      {
+        "name": "delete",
+        "actions": [
+          {
+            "retry": {
+              "count": 3,
+              "backoff": "exponential",
+              "delay": "1m"
+            },
+            "delete": {}
+          }
+        ],
+        "transitions": []
+      }
+    ],
+    "ism_template": [
+      {
+        "index_patterns": ["wazuh-alerts-*"],
+        "priority": 100
+      }
+    ]
+  }
+}

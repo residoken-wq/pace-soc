@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 
-// Log cleanup API - deletes logs older than specified retention period
-// This is a placeholder that demonstrates the API structure
-// In production, this would interact with Wazuh Indexer (Elasticsearch) or log storage
+// Retention is managed by Wazuh Indexer ISM, not by an HTTP request from the dashboard.
 
 export async function POST(request: Request) {
     try {
@@ -43,16 +41,12 @@ export async function POST(request: Request) {
         //     body: JSON.stringify(deleteQuery)
         // });
 
-        // Simulate cleanup for demo
-        const simulatedDeleted = Math.floor(Math.random() * 1000) + 100;
-
         return NextResponse.json({
-            success: true,
-            message: `Cleanup completed successfully`,
-            deleted: simulatedDeleted,
+            success: false,
+            error: 'Cleanup is not implemented. Configure Wazuh Indexer ISM retention policy instead.',
             cutoffDate: cutoffDate.toISOString(),
             retentionDays
-        });
+        }, { status: 501 });
 
     } catch (error: any) {
         console.error('[LOG CLEANUP] Error:', error);

@@ -7,6 +7,9 @@ export async function POST(request: Request) {
         const { action, targets } = body;
 
         if (action === 'ping') {
+            if (!Array.isArray(targets) || targets.length < 1 || targets.length > 32 || targets.some((ip: unknown) => typeof ip !== 'string' || !isPrivateIpv4(ip))) {
+                return NextResponse.json({ success: false, error: 'Provide 1-32 private IPv4 targets' }, { status: 400 });
+            }
             // Ping specific IP addresses
             const results = await Promise.all(
                 targets.map(async (ip: string) => {
@@ -58,6 +61,9 @@ export async function POST(request: Request) {
         if (action === 'scan') {
             // Scan a subnet (e.g., 192.168.1.0/24)
             const { subnet } = body;
+            if (typeof subnet !== 'string' || !/^((10|192\.168)\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3})\.0\/24$/.test(subnet)) {
+                return NextResponse.json({ success: false, error: 'Only private /24 subnets are allowed' }, { status: 400 });
+            }
             const baseIP = subnet.split('/')[0].split('.').slice(0, 3).join('.');
 
             // Scan common host range (1-254)
@@ -114,4 +120,10 @@ export async function POST(request: Request) {
             error: error.message
         }, { status: 500 });
     }
+}
+
+function isPrivateIpv4(ip: string): boolean {
+    const octets = ip.split('.').map(Number);
+    if (octets.length !== 4 || octets.some(value => !Number.isInteger(value) || value < 0 || value > 255)) return false;
+    return octets[0] === 10 || octets[0] === 192 && octets[1] === 168 || octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31;
 }

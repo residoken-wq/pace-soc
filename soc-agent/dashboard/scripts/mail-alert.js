@@ -84,7 +84,6 @@ async function main() {
 
         // Native fetch in Node may not support 'agent' option directly depending on version,
         // but let's try setting process env globally for this script.
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
         if (!response.ok) {
             throw new Error(`Indexer responded with ${response.status}: ${response.statusText}`);

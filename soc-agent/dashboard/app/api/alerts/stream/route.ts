@@ -5,8 +5,6 @@ const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://127.0.0.1:92
 const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
 const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_INDEXER_PASSWORD || process.env.WAZUH_API_PASSWORD || '';
 
-// Disable SSL verification for self-signed certs
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 interface SecurityAlert {
     id: string;
@@ -32,6 +30,13 @@ interface SecurityAlert {
     attackType: string;
     severity: 'critical' | 'high' | 'medium' | 'low';
 }
+
+const ALERT_CACHE_TTL_MS = 10000;
+const MAX_STREAMS = 50;
+let cachedAlerts: SecurityAlert[] = [];
+let cachedAlertsAt = 0;
+let refreshPromise: Promise<SecurityAlert[]> | null = null;
+let activeStreams = 0;
 
 // Map rule IDs to attack types - now using SOC rule mappings
 function getAttackType(ruleId: string, ruleLevel: number, description: string): string {
@@ -89,6 +94,26 @@ function getSeverity(ruleLevel: number): 'critical' | 'high' | 'medium' | 'low' 
 }
 
 async function fetchLatestAlerts(since?: string): Promise<SecurityAlert[]> {
+    const now = Date.now();
+    if (now - cachedAlertsAt < ALERT_CACHE_TTL_MS) {
+        return since ? cachedAlerts.filter(alert => alert.timestamp > since) : cachedAlerts;
+    }
+    if (refreshPromise) {
+        const alerts = await refreshPromise;
+        return since ? alerts.filter(alert => alert.timestamp > since) : alerts;
+    }
+    refreshPromise = fetchLatestAlertsFromIndexer();
+    try {
+        const alerts = await refreshPromise;
+        cachedAlerts = alerts;
+        cachedAlertsAt = Date.now();
+        return since ? alerts.filter(alert => alert.timestamp > since) : alerts;
+    } finally {
+        refreshPromise = null;
+    }
+}
+
+async function fetchLatestAlertsFromIndexer(): Promise<SecurityAlert[]> {
     try {
         const query: any = {
             size: 50,
@@ -102,13 +127,6 @@ async function fetchLatestAlerts(since?: string): Promise<SecurityAlert[]> {
                 }
             }
         };
-
-        // If we have a timestamp, only fetch newer alerts
-        if (since) {
-            query.query.bool.must.push({
-                range: { '@timestamp': { gt: since } }
-            });
-        }
 
         const response = await fetch(`${WAZUH_INDEXER_URL}/wazuh-alerts-*/_search`, {
             method: 'POST',
@@ -168,6 +186,11 @@ async function fetchLatestAlerts(since?: string): Promise<SecurityAlert[]> {
 }
 
 export async function GET(request: NextRequest) {
+    void request;
+    if (activeStreams >= MAX_STREAMS) {
+        return new Response('Too many alert streams', { status: 429 });
+    }
+    activeStreams += 1;
     const encoder = new TextEncoder();
     let lastTimestamp: string | undefined;
     let isActive = true;
@@ -221,6 +244,7 @@ export async function GET(request: NextRequest) {
         },
         cancel() {
             isActive = false;
+            activeStreams = Math.max(0, activeStreams - 1);
         }
     });
 

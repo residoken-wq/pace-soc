@@ -15,7 +15,7 @@
 
 ### Wazuh API
 - **User:** `wazuh-wui`
-- **Password:** `kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1`
+- **Password:** set via a secret manager; do not commit credentials
 
 ### Wazuh Dashboard (https://192.168.1.206:8443)
 - **User:** `admin`
@@ -62,10 +62,9 @@ services:
     ports:
       - "8080:3000"
     environment:
-      - NODE_TLS_REJECT_UNAUTHORIZED=0
       - WAZUH_MANAGER_URL=https://192.168.1.206:55000
       - WAZUH_API_USER=wazuh-wui
-      - WAZUH_API_PASSWORD=kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1
+      - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD}
 ```
 
 ---
@@ -152,10 +151,10 @@ systemctl restart wazuh-agent
 systemctl status wazuh-manager
 
 # Check Wazuh API status
-curl -k -u wazuh-wui:kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1 https://127.0.0.1:55000/
+curl --cacert /path/to/internal-ca.pem -u wazuh-wui:"$WAZUH_API_PASSWORD" https://127.0.0.1:55000/
 
 # Check Wazuh Indexer status
-curl -k -u admin:lAEg3oxh+zhrp4fM60KRQKd2euZCl7cd https://127.0.0.1:9200
+curl --cacert /path/to/internal-ca.pem -u admin:"$WAZUH_INDEXER_PASSWORD" https://127.0.0.1:9200
 
 # Check Filebeat status
 systemctl status filebeat
@@ -180,34 +179,34 @@ docker ps | grep soc
 
 # Admin user for the web user interface and Wazuh indexer. Use this u>
   indexer_username: 'admin'
-  indexer_password: 'lAEg3oxh+zhrp4fM60KRQKd2euZCl7cd'
+  indexer_password: '<set-via-secret-manager>'
 
 # Wazuh dashboard user for establishing the connection with Wazuh ind>
   indexer_username: 'kibanaserver'
-  indexer_password: '4V4EEn4SWEZy7iHPF75*Qnh+7DfABHzO'
+  indexer_password: '<set-via-secret-manager>'
 
 # Regular Dashboard user, only has read permissions to all indices an>
   indexer_username: 'kibanaro'
-  indexer_password: '835A0wi*fMP5+jwCNq5c8Aqsk3daW7s4'
+  indexer_password: '<set-via-secret-manager>'
 
 # Filebeat user for CRUD operations on Wazuh indices
   indexer_username: 'logstash'
-  indexer_password: 'DQXNbft+w18q.KMUdQBre28cGGbWXq7.'
+  indexer_password: '<set-via-secret-manager>'
 
 # User with READ access to all indices
   indexer_username: 'readall'
-  indexer_password: 'w?POhksln?.fRP9*e7hP?.dwfWnIFYZd'
+  indexer_password: '<set-via-secret-manager>'
 
 # User with permissions to perform snapshot and restore operations
   indexer_username: 'snapshotrestore'
-  indexer_password: 'GLSMRdx?j8MT+CN.UIb.vY+?Ac6nzCFW'
+  indexer_password: '<set-via-secret-manager>'
 
 # Password for wazuh API user
   api_username: 'wazuh'
-  api_password: 'qGW2gSxPG2nB2AVh3.AAG.9FuUvAxJsl'
+  api_password: '<set-via-secret-manager>'
 
 # Password for wazuh-wui API user
   api_username: 'wazuh-wui'
-  api_password: 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1'
+  api_password: '<set-via-secret-manager>'
 
 *Last updated: 2026-01-06*

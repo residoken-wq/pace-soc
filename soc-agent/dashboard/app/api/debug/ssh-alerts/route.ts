@@ -4,7 +4,6 @@ const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://127.0.0.1:92
 const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
 const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_INDEXER_PASSWORD || process.env.WAZUH_API_PASSWORD || '';
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);

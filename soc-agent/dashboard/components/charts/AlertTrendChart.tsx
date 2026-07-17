@@ -18,29 +18,11 @@ export interface AlertTrendChartProps {
     className?: string;
 }
 
-// Generate sample data if none provided
-function generateSampleData(days: number): AlertTrendData[] {
-    const data: AlertTrendData[] = [];
-    const today = new Date();
-
-    for (let i = days - 1; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        data.push({
-            date: date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-            critical: Math.floor(Math.random() * 10),
-            warning: Math.floor(Math.random() * 25) + 5,
-            info: Math.floor(Math.random() * 50) + 10,
-        });
-    }
-    return data;
-}
-
 export function AlertTrendChart({ data, days = 7, className }: AlertTrendChartProps) {
     const [chartData, setChartData] = useState<AlertTrendData[]>([]);
 
     useEffect(() => {
-        setChartData(data || generateSampleData(days));
+        setChartData(data || []);
     }, [data, days]);
 
     const totalCritical = chartData.reduce((sum, d) => sum + d.critical, 0);

@@ -3,7 +3,7 @@ import { wazuhFetch } from '../../../../lib/wazuh';
 
 const WAZUH_INDEXER_URL = process.env.WAZUH_INDEXER_URL || 'https://192.168.1.206:9200';
 const WAZUH_INDEXER_USER = process.env.WAZUH_INDEXER_USER || 'admin';
-const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_API_PASSWORD || 'kP+cJvIn1LQ6*MruHQNYfv.REn68RKP1';
+const WAZUH_INDEXER_PASSWORD = process.env.WAZUH_INDEXER_PASSWORD || process.env.WAZUH_API_PASSWORD;
 
 export async function GET(request: Request) {
     try {
@@ -29,7 +29,7 @@ export async function GET(request: Request) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64')
+                    ...(WAZUH_INDEXER_PASSWORD ? { 'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64') } : {})
                 },
                 body: JSON.stringify(query)
             });
@@ -135,7 +135,7 @@ async function getAgentMetrics(agentId: string) {
         }
     } catch (e) { }
 
-    // Try to get storage from hardware/hotfixes or estimate from agent type
+    // Try to get storage from hardware when available; never fabricate telemetry.
     try {
         const hwData = await wazuhFetch(`/syscollector/${agentId}/hardware`);
         if (hwData.data?.affected_items?.[0]) {
@@ -147,28 +147,15 @@ async function getAgentMetrics(agentId: string) {
         }
     } catch (e) { }
 
-    // If still no storage, try to estimate from OS type or use reasonable default
-    if (storage === 0) {
-        // Vary storage based on agent ID to avoid all showing same value
-        const hash = agentId.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-        storage = 40 + (hash % 35); // Range: 40-75%
-    }
-
     try {
-        // Fallback CPU estimation
+        // Process inventory is not a CPU measurement; do not turn it into a fake percentage.
         const processData = await wazuhFetch(`/syscollector/${agentId}/processes?limit=100`);
-        if (processData.data?.affected_items) {
-            const numProcesses = processData.data.affected_items.length;
-            // Improved estimation: base 1% per process is too high. 
-            // Let's assume idle system has ~100 processes but low CPU.
-            // Maybe random fluctuation around 5-10% + load
-            cpu = Math.min(90, Math.floor(5 + (numProcesses * 0.1) + (Math.random() * 5)));
-        }
+        void processData;
     } catch (e) { }
 
     return {
-        cpu: cpu || Math.floor(Math.random() * 20) + 5,
-        memory: memory || Math.floor(Math.random() * 40) + 20,
+        cpu,
+        memory,
         storage: storage
     };
 }

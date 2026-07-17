@@ -94,9 +94,29 @@ async function getSettings(): Promise<Settings> {
 
 async function saveSettings(settings: Partial<Settings>): Promise<Settings> {
     const current = await getSettings();
-    const updated = { ...current, ...settings };
+    const updated = {
+        ...current,
+        ...settings,
+        smtp: { ...current.smtp, ...(settings.smtp || {}) },
+        ai: settings.ai ? { ...current.ai, ...settings.ai } : current.ai
+    };
+    if (settings.smtp && !settings.smtp.password) updated.smtp.password = current.smtp.password;
+    if (settings.ai && !settings.ai.apiKey && updated.ai) updated.ai.apiKey = current.ai?.apiKey || '';
     await fs.writeFile(SETTINGS_FILE, JSON.stringify(updated, null, 2));
     return updated;
+}
+
+function publicSettings(settings: Settings): Omit<Settings, 'smtp' | 'ai'> & { smtp: Omit<Settings['smtp'], 'password'> & { passwordConfigured: boolean }; ai?: Omit<NonNullable<Settings['ai']>, 'apiKey'> & { apiKeyConfigured: boolean } } {
+    const { password, ...smtpWithoutPassword } = settings.smtp;
+    const safeSettings = { ...settings } as Omit<Settings, 'smtp' | 'ai'>;
+    delete (safeSettings as Partial<Settings>).smtp;
+    delete (safeSettings as Partial<Settings>).ai;
+    const ai = settings.ai ? (({ apiKey, ...rest }) => ({ ...rest, apiKeyConfigured: Boolean(apiKey) }))(settings.ai) : undefined;
+    return {
+        ...safeSettings,
+        smtp: { ...smtpWithoutPassword, passwordConfigured: Boolean(password) },
+        ...(ai ? { ai } : {})
+    };
 }
 
 export async function GET() {
@@ -104,13 +124,13 @@ export async function GET() {
         const settings = await getSettings();
         return NextResponse.json({
             success: true,
-            settings
+            settings: publicSettings(settings)
         });
     } catch (error: any) {
         return NextResponse.json({
             success: false,
             error: error.message,
-            settings: defaultSettings
+            settings: publicSettings(defaultSettings)
         });
     }
 }
@@ -131,7 +151,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
             success: true,
             message: 'Settings saved successfully',
-            settings: updated
+            settings: publicSettings(updated)
         });
     } catch (error: any) {
         return NextResponse.json({

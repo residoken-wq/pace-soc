@@ -19,9 +19,6 @@ export async function GET() {
         WAZUH_API_PASSWORD: WAZUH_API_PASSWORD ? '***SET***' : '***NOT SET***',
     };
 
-    // Disable SSL verification
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
     // Test 1: Basic connectivity
     try {
         const response = await fetch(WAZUH_MANAGER_URL, {
