@@ -53,6 +53,28 @@
 
 ## 📦 Docker Services
 
+### Temporary TLS bypass
+
+If the Wazuh Manager/Indexer currently uses a self-signed certificate and the CA
+bundle is not ready, add this line to `/opt/soc-agent/soc-agent/.env`:
+
+```dotenv
+NODE_TLS_REJECT_UNAUTHORIZED=0
+```
+
+Then recreate only the dashboard container:
+
+```bash
+cd /opt/soc-agent/soc-agent
+docker compose up -d --build --force-recreate soc-dashboard
+docker compose logs --tail=100 soc-dashboard
+```
+
+This keeps HTTPS encryption but temporarily disables certificate-chain and
+hostname verification for outbound TLS connections made by the dashboard.
+After installing the correct Wazuh CA bundle, change the value back to `1`, set
+`WAZUH_CA_BUNDLE_HOST`, and recreate the container again.
+
 ### SOC Dashboard Container
 ```yaml
 # Location: /opt/soc-agent/dashboard/docker-compose.yml

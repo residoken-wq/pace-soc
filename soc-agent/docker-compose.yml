@@ -89,6 +89,9 @@ services:
       - WAZUH_INDEXER_URL=${WAZUH_INDEXER_URL:?WAZUH_INDEXER_URL must be set}
       - WAZUH_INDEXER_USER=${WAZUH_INDEXER_USER:?WAZUH_INDEXER_USER must be set}
       - WAZUH_INDEXER_PASSWORD=${WAZUH_INDEXER_PASSWORD:?WAZUH_INDEXER_PASSWORD must be set}
+      # TEMPORARY: set to 0 only while Wazuh uses an untrusted/self-signed certificate.
+      # Restore to 1 and configure WAZUH_CA_BUNDLE_HOST as soon as the CA is available.
+      - NODE_TLS_REJECT_UNAUTHORIZED=${NODE_TLS_REJECT_UNAUTHORIZED:-1}
       - NODE_EXTRA_CA_CERTS=/run/secrets/wazuh-ca-bundle.pem
       # Authentication
       - SOC_ADMIN_PASSWORD=${SOC_ADMIN_PASSWORD:?SOC_ADMIN_PASSWORD must be set}
@@ -98,7 +101,8 @@ services:
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-https://soc.pace.edu.vn}
     volumes:
       - soc-dashboard-data:/app/data
-      - ${WAZUH_CA_BUNDLE_HOST:?WAZUH_CA_BUNDLE_HOST must be set}:/run/secrets/wazuh-ca-bundle.pem:ro
+      # The system CA file is the fallback so this mount does not block temporary TLS bypass mode.
+      - ${WAZUH_CA_BUNDLE_HOST:-/etc/ssl/certs/ca-certificates.crt}:/run/secrets/wazuh-ca-bundle.pem:ro
 
 volumes:
   promtail-data:
