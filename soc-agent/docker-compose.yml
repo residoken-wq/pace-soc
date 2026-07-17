@@ -82,14 +82,14 @@ services:
       - NODE_ENV=production
       - PORT=8080
       - HOSTNAME=0.0.0.0
-      # Wazuh API Connection (localhost since host network)
-      - WAZUH_MANAGER_URL=https://127.0.0.1:55000
+      # Use a hostname/IP present in the Wazuh certificate SAN.
+      - WAZUH_MANAGER_URL=${WAZUH_MANAGER_URL:?WAZUH_MANAGER_URL must be set}
       - WAZUH_API_USER=${WAZUH_API_USER:-wazuh-wui}
       - WAZUH_API_PASSWORD=${WAZUH_API_PASSWORD:?WAZUH_API_PASSWORD must be set}
-      # Wazuh Indexer Connection (localhost since host network)
-      - WAZUH_INDEXER_URL=https://127.0.0.1:9200
+      - WAZUH_INDEXER_URL=${WAZUH_INDEXER_URL:?WAZUH_INDEXER_URL must be set}
       - WAZUH_INDEXER_USER=${WAZUH_INDEXER_USER:?WAZUH_INDEXER_USER must be set}
       - WAZUH_INDEXER_PASSWORD=${WAZUH_INDEXER_PASSWORD:?WAZUH_INDEXER_PASSWORD must be set}
+      - NODE_EXTRA_CA_CERTS=/run/secrets/wazuh-ca-bundle.pem
       # Authentication
       - SOC_ADMIN_PASSWORD=${SOC_ADMIN_PASSWORD:?SOC_ADMIN_PASSWORD must be set}
       - SOC_ANALYST_PASSWORD=${SOC_ANALYST_PASSWORD:?SOC_ANALYST_PASSWORD must be set}
@@ -98,6 +98,7 @@ services:
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-https://soc.pace.edu.vn}
     volumes:
       - soc-dashboard-data:/app/data
+      - ${WAZUH_CA_BUNDLE_HOST:?WAZUH_CA_BUNDLE_HOST must be set}:/run/secrets/wazuh-ca-bundle.pem:ro
 
 volumes:
   promtail-data:
