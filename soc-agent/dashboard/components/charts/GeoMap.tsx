@@ -64,7 +64,10 @@ export function GeoMap() {
         // Load Alerts Data
         fetch('/api/geoip')
             .then(res => res.json())
-            .then(setData)
+            .then(payload => {
+                const stats = Array.isArray(payload) ? payload : payload?.data;
+                setData(Array.isArray(stats) ? stats : []);
+            })
             .catch(err => console.error("GeoIP Stats load failed", err));
 
         // Load World Map Topology (Lightweight 110m resolution)
