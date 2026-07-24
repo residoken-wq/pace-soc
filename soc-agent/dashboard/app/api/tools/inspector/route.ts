@@ -55,7 +55,7 @@ export async function POST(request: Request) {
             // 
             // Let's try to query syscheck and rootcheck recent events for this agent as a proxy for "Threats"
 
-            let alerts: any[] = [];
+            const alerts: any[] = [];
 
             // FIM Events
             try {
