@@ -11,7 +11,7 @@ export async function GET(request: Request) {
         const agentId = searchParams.get('agentId');
 
         // 1. Fetch real-time metrics from Wazuh Indexer (alerts with rule.id 100010)
-        let realMetrics: Record<string, any> = {};
+        const realMetrics: Record<string, any> = {};
         try {
             const query = {
                 size: 200,
@@ -119,7 +119,7 @@ export async function GET(request: Request) {
 
 async function getAgentMetrics(agentId: string) {
     // ... (Keep existing estimation logic as fallback)
-    let cpu = 0;
+    const cpu = 0;
     let memory = 0;
     let storage = 0;
 
