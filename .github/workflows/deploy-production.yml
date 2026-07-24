@@ -1,0 +1,105 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: pace-soc-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/pace-soc-dashboard
+
+jobs:
+  quality:
+    name: Validate release
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: soc-agent/dashboard
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: soc-agent/dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          SOC_ADMIN_PASSWORD: ci-only-password
+          SOC_ANALYST_PASSWORD: ci-only-password
+          JWT_SECRET: ci-only-secret-that-is-at-least-thirty-two-characters
+          ALLOWED_ORIGIN: http://localhost:3000
+
+  image:
+    name: Build and publish image
+    needs: quality
+    runs-on: ubuntu-24.04
+    outputs:
+      image: ${{ steps.image.outputs.reference }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Define immutable image reference
+        id: image
+        run: echo "reference=${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: soc-agent/dashboard
+          file: soc-agent/dashboard/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image.outputs.reference }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+  deploy:
+    name: Deploy on on-prem VM
+    needs: image
+    runs-on: [self-hosted, linux, x64, pace-soc-production]
+    environment:
+      name: production
+      url: https://soc.pace.edu.vn
+    steps:
+      - name: Check out deployment configuration
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Deploy with health check and rollback
+        run: ./deploy/scripts/deploy.sh "${{ needs.image.outputs.image }}"

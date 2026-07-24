@@ -1,0 +1,19 @@
+{
+	email {$ACME_EMAIL}
+}
+
+soc.pace.edu.vn {
+	encode zstd gzip
+	reverse_proxy dashboard:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
+

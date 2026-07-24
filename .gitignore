@@ -1,0 +1,6 @@
+# Local secrets and runtime state
+.env
+.env.*
+!.env.example
+!deploy/.env.production.example
+deploy/.last-successful-image

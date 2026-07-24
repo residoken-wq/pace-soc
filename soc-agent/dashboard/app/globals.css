@@ -24,3 +24,9 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media (min-width: 1024px) {
+  body:has(.soc-sidebar) {
+    padding-left: 16rem;
+  }
+}

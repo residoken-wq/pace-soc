@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dashboard:
+    name: Dashboard checks
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: soc-agent/dashboard
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: soc-agent/dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          SOC_ADMIN_PASSWORD: ci-only-password
+          SOC_ANALYST_PASSWORD: ci-only-password
+          JWT_SECRET: ci-only-secret-that-is-at-least-thirty-two-characters
+          ALLOWED_ORIGIN: http://localhost:3000
+

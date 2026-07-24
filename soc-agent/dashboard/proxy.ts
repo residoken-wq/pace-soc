@@ -5,6 +5,7 @@ import { validateToken } from '@/lib/token';
 const PUBLIC_ROUTES = [
     '/login',
     '/api/auth/login',
+    '/api/health',
     '/_next',
     '/favicon.ico',
 ];
