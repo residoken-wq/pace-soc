@@ -113,12 +113,16 @@ export async function GET(request: Request) {
             });
         }
 
-        const query = {
+        const baseQuery = {
             size: limit,
             sort: [{ '@timestamp': 'desc' }],
             query: mustClauses.length > 0
                 ? { bool: { must: mustClauses } }
-                : { match_all: {} },
+                : { match_all: {} }
+        };
+
+        const query = {
+            ...baseQuery,
             // Aggregation to get ALL unique sources across entire index
             aggs: {
                 all_decoders: {
@@ -131,14 +135,26 @@ export async function GET(request: Request) {
         };
 
         // Fetch from Wazuh Indexer
-        const response = await fetch(`${WAZUH_INDEXER_URL}/wazuh-alerts-*/_search`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64')
-            },
-            body: JSON.stringify(query)
-        });
+        const performSearch = (body: object) =>
+            fetch(`${WAZUH_INDEXER_URL}/wazuh-alerts-*/_search?ignore_unavailable=true&allow_no_indices=true`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Basic ' + Buffer.from(`${WAZUH_INDEXER_USER}:${WAZUH_INDEXER_PASSWORD}`).toString('base64')
+                },
+                body: JSON.stringify(body)
+            });
+
+        let response = await performSearch(query);
+
+        // Some Wazuh/OpenSearch versions can fail in the aggregation reduce phase
+        // even though normal document searches still work. Keep logs available and
+        // derive the source list from the returned page in that case.
+        if (response.status === 500) {
+            const aggregationError = await response.text();
+            console.warn('Indexer aggregation failed; retrying logs without aggregations:', aggregationError);
+            response = await performSearch(baseQuery);
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -184,10 +200,12 @@ export async function GET(request: Request) {
         const decoderBuckets = data.aggregations?.all_decoders?.buckets || [];
         const ruleGroupBuckets = data.aggregations?.all_rule_groups?.buckets || [];
 
-        // Combine and deduplicate sources from both aggregations
+        // Combine aggregation results with sources from this page. The latter is
+        // also the fallback when the Indexer cannot execute aggregations.
         const allSources = new Set<string>();
         decoderBuckets.forEach((b: any) => allSources.add(b.key));
         ruleGroupBuckets.forEach((b: any) => allSources.add(b.key));
+        logs.forEach(log => allSources.add(log.source));
 
         const sources = [...allSources].sort();
 
