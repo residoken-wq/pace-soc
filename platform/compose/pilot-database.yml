@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: ${PACE_POSTGRES_IMAGE:?PACE_POSTGRES_IMAGE must be pinned to an approved image or digest}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PACE_DB_NAME:-pace_uem}
+      POSTGRES_USER: ${PACE_DB_USER:-pace_uem}
+      POSTGRES_PASSWORD: ${PACE_DB_PASSWORD:?PACE_DB_PASSWORD must be set}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    ports:
+      - "127.0.0.1:${PACE_DB_PORT:-5433}:5432"
+    volumes:
+      - pilot-postgres-data:/var/lib/postgresql/data
+      - ../database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - pilot-backend
+
+volumes:
+  pilot-postgres-data:
+
+networks:
+  pilot-backend:
+    internal: true

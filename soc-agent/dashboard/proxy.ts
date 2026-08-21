@@ -1,56 +1,48 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { validateToken } from '@/lib/token';
+import { canAccess, isPublicRoute } from '@/lib/access-policy';
+import { REQUEST_ID_HEADER, resolveRequestId } from '@/lib/request-context';
 
-const PUBLIC_ROUTES = [
-    '/login',
-    '/api/auth/login',
-    '/api/health',
-    '/_next',
-    '/favicon.ico',
-];
+function nextWithRequestContext(request: NextRequest, requestId: string, user?: { username: string; role: string }) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set(REQUEST_ID_HEADER, requestId);
+    if (user) {
+        requestHeaders.set('X-Authenticated-User', user.username);
+        requestHeaders.set('X-Authenticated-Role', user.role);
+    }
 
-const ADMIN_ONLY_PREFIXES = [
-    '/api/debug',
-    '/api/system/fix',
-    '/api/logs/cleanup',
-    '/api/email/test',
-];
-
-function isPublicRoute(pathname: string): boolean {
-    return PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`));
-}
-
-function isAdminOnly(request: NextRequest): boolean {
-    const { pathname } = request.nextUrl;
-    if (ADMIN_ONLY_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))) return true;
-    if (['/api/settings', '/api/rules'].includes(pathname)) return true;
-    if (request.method !== 'GET' && pathname === '/api/wazuh/agents') return true;
-    return false;
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set(REQUEST_ID_HEADER, requestId);
+    return response;
 }
 
 export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
-    if (isPublicRoute(pathname)) return NextResponse.next();
+    const requestId = resolveRequestId(request.headers.get(REQUEST_ID_HEADER));
+    if (isPublicRoute(pathname)) return nextWithRequestContext(request, requestId);
 
     const user = validateToken(request.cookies.get('soc_auth')?.value || '');
     if (!user) {
         if (pathname.startsWith('/api/')) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            const response = NextResponse.json({ error: 'Unauthorized', requestId }, { status: 401 });
+            response.headers.set(REQUEST_ID_HEADER, requestId);
+            return response;
         }
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('redirect', pathname);
-        return NextResponse.redirect(loginUrl);
+        const response = NextResponse.redirect(loginUrl);
+        response.headers.set(REQUEST_ID_HEADER, requestId);
+        return response;
     }
 
-    if (isAdminOnly(request) && user.role !== 'admin') {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!canAccess(user.role, pathname, request.method)) {
+        const response = NextResponse.json({ error: 'Forbidden', requestId }, { status: 403 });
+        response.headers.set(REQUEST_ID_HEADER, requestId);
+        return response;
     }
 
-    const response = NextResponse.next();
-    response.headers.set('X-Authenticated-User', user.username);
-    response.headers.set('X-Authenticated-Role', user.role);
-    return response;
+    return nextWithRequestContext(request, requestId, user);
 }
 
 export const config = {

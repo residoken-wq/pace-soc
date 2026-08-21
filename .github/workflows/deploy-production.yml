@@ -41,6 +41,28 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test
+        run: |
+          npm test
+          node --experimental-strip-types --test ../../apps/api/tests/*.test.ts
+          node --test ../../platform/tests/*.test.mjs
+          npx tsc --noEmit --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions \
+            ../../apps/api/src/integrations/wazuh/agent-sync.ts \
+            ../../apps/api/src/integrations/wazuh/agent-page.ts \
+            ../../apps/api/src/integrations/wazuh/pagination.ts \
+            ../../apps/api/src/integrations/wazuh/retry-policy.ts \
+            ../../apps/api/src/integrations/wazuh/sync-batch.ts \
+            ../../apps/api/src/integrations/run-state.ts \
+            ../../apps/api/src/identity/authorization.ts \
+            ../../apps/api/src/reconciliation/decision.ts \
+            ../../apps/api/tests/identity-authorization.test.ts \
+            ../../apps/api/tests/integration-run.test.ts \
+            ../../apps/api/tests/wazuh-agent-sync.test.ts \
+            ../../apps/api/tests/wazuh-agent-page.test.ts \
+            ../../apps/api/tests/wazuh-pagination.test.ts \
+            ../../apps/api/tests/wazuh-retry-policy.test.ts \
+            ../../apps/api/tests/reconciliation-decision.test.ts
+
       - name: Build
         run: npm run build
         env:
